@@ -1,0 +1,1347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UAV Margin Calculator</title>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --ink:#1b1f24; --muted:#5d6670; --line:#dde1e6; --soft:#eef1f4;
+  --accent:#1f6feb; --c-front:#1f6feb; --c-side:#c2410c;
+  --ok:#2a9d8f; --warn:#e9a23b; --bad:#d1495b; --aoi:#1b1f24; --buf:#1f6feb; --track:rgba(27,31,36,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1216; --panel:#171b21; --ink:#e6e9ee; --muted:#9aa4af; --line:#2a3038; --soft:#1f242b;
+    --accent:#5a9bff; --c-front:#5a9bff; --c-side:#fb923c;
+    --ok:#3bb3a3; --warn:#f0b04f; --bad:#e8637a; --aoi:#e6e9ee; --buf:#5a9bff; --track:rgba(230,233,238,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1216; --panel:#171b21; --ink:#e6e9ee; --muted:#9aa4af; --line:#2a3038; --soft:#1f242b;
+  --accent:#5a9bff; --c-front:#5a9bff; --c-side:#fb923c;
+  --ok:#3bb3a3; --warn:#f0b04f; --bad:#e8637a; --aoi:#e6e9ee; --buf:#5a9bff; --track:rgba(230,233,238,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:1280px;margin:0 auto}
+header h1{margin:0 0 4px;font-size:22px}
+header p{margin:0;color:var(--muted);max-width:820px}
+main{display:grid;grid-template-columns:360px 1fr;gap:16px;max-width:1280px;margin:0 auto;padding:12px 16px 40px}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+aside .panel{margin-bottom:12px}
+@media (min-width:901px){aside{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto}}
+h2{font-size:15px;margin:0 0 10px}
+h3{font-size:13px;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+input,select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit}
+input:disabled{opacity:.55}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--soft);border-radius:8px;padding:8px 10px}
+.kpi .k{font-size:11px;color:var(--muted)}
+.kpi .v{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:11px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.card.rec{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.card .t{font-size:12px;color:var(--muted)}
+.card .m{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.card .d{font-size:12px;color:var(--muted)}
+.card button{margin-top:auto}
+button{padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:inherit;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.marginbar{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center}
+input[type=range]{padding:0}
+.warn{border-left:3px solid var(--warn);background:var(--soft);padding:6px 10px;border-radius:4px;margin:6px 0;font-size:13px}
+.warn.bad{border-color:var(--bad)}
+.warn.ok{border-color:var(--ok)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+td,th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}
+th{color:var(--muted);font-weight:500}
+td.n{text-align:right}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-top:8px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-2px;margin-right:4px}
+#map{width:100%;display:block;border-radius:6px;background:var(--soft)}
+#chart{width:100%;height:auto;display:block}
+.formula{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--soft);padding:8px 10px;border-radius:6px;white-space:pre-wrap;overflow-x:auto}
+details summary{cursor:pointer;font-weight:600}
+.tag{font-size:11px;padding:1px 6px;border-radius:10px;background:var(--soft);color:var(--muted)}
+.hide{display:none!important}
+.qmark{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;padding:0;margin-left:5px;border-radius:50%;font-size:11px;font-weight:700;line-height:1;vertical-align:1px;background:var(--soft);color:var(--accent);border:1px solid var(--accent);cursor:pointer}
+.qmark:hover,.qmark:focus-visible{background:var(--accent);color:#fff}
+h2 .qmark{width:19px;height:19px;font-size:12px}
+.qmark-demo{display:inline-flex;width:17px;height:17px;border-radius:50%;border:1px solid var(--accent);color:var(--accent);font-size:11px;font-weight:700;align-items:center;justify-content:center}
+.helppop{position:absolute;z-index:50;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12.5px;outline:none}
+.helppop p{margin:6px 0}
+.pophead{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px}
+.popx,#helpClose{border:none;background:none;font-size:20px;line-height:1;padding:0 4px;color:var(--muted);cursor:pointer}
+.popmore{margin-top:8px!important;font-size:12px}
+.popmore a{color:var(--accent)}
+input.invalid{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
+input.advisory{border-color:var(--warn)}
+.vmsg{font-size:11.5px;margin-top:3px}
+.vmsg.err{color:var(--bad)} .vmsg.adv{color:var(--muted)}
+.banner{max-width:1248px;margin:4px auto 0;padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--bad) 16%,var(--panel));border:1px solid var(--bad);font-size:13px}
+dialog#helpCentre{width:min(960px,calc(100vw - 24px));height:min(760px,calc(100vh - 24px));padding:0;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink)}
+dialog#helpCentre::backdrop{background:rgba(0,0,0,.45)}
+dialog#helpCentre[open]{display:flex;flex-direction:column}
+.hc-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.hc-head h2{margin:0}
+.hc-wrap{display:grid;grid-template-columns:200px 1fr;min-height:0;flex:1}
+#helpNav{border-right:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:4px;overflow:auto}
+#helpNav button{text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px}
+#helpNav button.active{background:var(--soft);color:var(--accent);font-weight:600}
+#helpBody{padding:4px 20px 24px;overflow:auto;font-size:13.5px;line-height:1.55}
+#helpBody h3{font-size:17px;margin:14px 0 8px;text-transform:none;letter-spacing:0;color:var(--ink)}
+#helpBody h4{margin:16px 0 4px;font-size:14px}
+#helpBody li{margin:4px 0}
+.reftable td,.reftable th{vertical-align:top;font-size:12.5px}
+.reftable td:first-child{width:22%} .reftable td:nth-child(3){width:20%}
+.muted{color:var(--muted)}
+.flash{animation:flash 1.6s ease}
+@keyframes flash{0%,60%{background:color-mix(in srgb,var(--accent) 22%,transparent)}100%{background:transparent}}
+dl.gloss dt{font-weight:700;margin-top:8px} dl.gloss dd{margin:2px 0 0 0}
+@media (max-width:700px){.hc-wrap{grid-template-columns:1fr;grid-template-rows:auto 1fr}#helpNav{flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line)}#helpBody{padding:4px 14px 20px}}
+.maptools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}.maptools label{margin:0}.maptools select{width:auto;max-width:100%}
+.mapwrap{position:relative}
+.maptip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.18);white-space:nowrap;z-index:2}
+.stack{display:flex;height:22px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin-top:4px}
+.stack div{height:100%}
+.legend .ok-mark{color:var(--ok);font-weight:700}
+input[readonly],select:disabled{background:var(--soft);color:var(--muted);cursor:not-allowed}
+.lock{font-size:12px;color:var(--muted);margin-top:6px}
+details.explain{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px}
+details.explain p{margin:8px 0}
+table.mini td,table.mini th{font-size:11.5px;padding:3px 4px}
+.fig{width:100%;max-width:360px;height:auto;display:block;margin:6px auto}
+.fig .ft{font-size:11px;fill:var(--ink)} .fig .fs{font-size:10px;fill:var(--muted)}
+.fig .fg{stroke:var(--muted);stroke-width:1.5} .fig .fb{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:4 3}
+.fig .fp path{fill:var(--c-front);fill-opacity:.12;stroke:var(--c-front);stroke-width:1}
+.fig .fbad{fill:var(--bad)} .fig .fok{fill:var(--ok)}
+.fig .fm{stroke:var(--buf);stroke-width:1.5;fill:none}
+.fig .fbuf{fill:none;stroke:var(--buf);stroke-width:1.5;stroke-dasharray:6 4}
+.fig .faoi{fill:var(--ok);fill-opacity:.12;stroke:var(--aoi);stroke-width:2}
+.fig .ftrack line,.fig .ftrack path{stroke:var(--track);stroke-width:1;fill:none}
+.fig .farrow{stroke:var(--accent);stroke-width:2;fill:none}
+.fig .fdim{stroke:var(--ink);stroke-width:1.2;fill:none}
+.check{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:start;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.check .i{font-weight:700;text-align:center}
+.check .i.pass{color:var(--ok)} .check .i.fail{color:var(--bad)} .check .i.info{color:var(--warn)}
+.check .val{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+.verdict{padding:8px 12px;border-radius:8px;font-weight:600;margin-bottom:8px}
+.verdict.pass{background:color-mix(in srgb,var(--ok) 18%,transparent)} .verdict.fail{background:color-mix(in srgb,var(--bad) 18%,transparent)}
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+    <h1>UAV Flight Plan Margin Calculator</h1>
+    <div style="display:flex;gap:8px">
+      <button id="helpBtn" class="primary" title="Open the Help centre">? Help</button>
+      <button id="resetBtn" title="Restore every setting to its default (Phantom 4 Multispectral)">↺ Reset to defaults</button>
+    </div>
+  </div>
+  <p>Turns the DJI “Margin” setting (GS RTK, GS Pro, Pilot 2) into the frontlap and sidelap you actually get at the edge of your survey area — and recommends a margin that keeps edge overlap high enough for orthomosaics and 3D models.</p>
+</header>
+
+<div id="validBanner" class="banner hide" role="alert"></div>
+<dialog id="helpCentre" aria-labelledby="helpTitle">
+  <div class="hc-head"><h2 id="helpTitle">Help centre</h2><button type="button" id="helpClose" aria-label="Close help">×</button></div>
+  <div class="hc-wrap"><nav id="helpNav" aria-label="Help topics"></nav><div id="helpBody" tabindex="0"></div></div>
+</dialog>
+<div id="helpPop" class="helppop hide" role="dialog" tabindex="-1"></div>
+<main>
+<aside>
+  <div class="panel">
+    <h2>1 · Aircraft &amp; sensor</h2>
+    <label for="preset">Platform / payload</label>
+    <select id="preset"></select>
+    <div class="lock" id="lockNote"></div>
+
+    <div id="camFields">
+      <div class="row">
+        <div><label for="sw">Sensor width (mm)</label><input id="sw" type="number" step="0.01"></div>
+        <div><label for="sh">Sensor height (mm)</label><input id="sh" type="number" step="0.01"></div>
+      </div>
+      <div class="row">
+        <div><label for="iw">Image width (px)</label><input id="iw" type="number" step="1"></div>
+        <div><label for="ih">Image height (px)</label><input id="ih" type="number" step="1"></div>
+      </div>
+      <div class="row">
+        <div><label for="f">Focal length (mm)</label><input id="f" type="number" step="0.01"></div>
+        <div><label for="minInt">Min. photo interval (s)</label><input id="minInt" type="number" step="0.1" placeholder="not published"></div>
+      </div>
+      <label for="orient">Camera orientation</label>
+      <select id="orient">
+        <option value="across">Long side across track (standard nadir mapping)</option>
+        <option value="along">Long side along track</option>
+      </select>
+    </div>
+
+    <div id="lidarFields" class="hide">
+      <div class="row">
+        <div><label for="fovX">FOV across track (°)</label><input id="fovX" type="number" step="0.1"></div>
+        <div><label for="pattern">Scan mode</label>
+          <select id="pattern"></select></div>
+      </div>
+      <div class="hint">LiDAR is a continuous scanner: there is no frontlap. Along-track edge quality is shown as “dwell” — how much of the full scan time an edge point gets compared with an interior point.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>2 · Flight parameters</h2>
+    <div class="row">
+      <div><label for="H">Altitude AGL (m)</label><input id="H" type="number" step="1" value="100"></div>
+      <div><label for="gsd">GSD (cm/px)</label><input id="gsd" type="number" step="0.01"></div>
+    </div>
+    <div class="row">
+      <div id="frontWrap"><label for="front">Frontlap (%)</label><input id="front" type="number" step="1" min="0" max="95" value="80"></div>
+      <div><label for="side">Sidelap (%)</label><input id="side" type="number" step="1" min="0" max="95" value="70"></div>
+    </div>
+    <div class="row">
+      <div><label for="speed">Speed (m/s)</label><input id="speed" type="number" step="0.5" value="8"></div>
+      <div id="shutterWrap"><label for="shutter">Shutter speed 1/x (s)</label><input id="shutter" type="number" step="10" min="1" value="1000"></div>
+    </div>
+    <div id="shutterHelp">
+      <div class="hint" id="shutterHint"></div>
+      <details class="explain">
+        <summary>How to set the shutter speed</summary>
+        <p><b>Why it matters.</b> While the shutter is open the aircraft keeps moving, so every point is smeared over <b>speed × exposure time</b>. Divided by the GSD, that gives the <b>motion blur in pixels</b>:</p>
+        <div class="formula">blur (px) = speed (m/s) × (1 / shutter) / GSD (m)</div>
+        <p><b>Targets:</b> ≤ 0.5 px is sharp (best for 3D and accurate tie points); 0.5–1 px is acceptable for orthomosaics; &gt; 1 px loses detail and accuracy. Enter here the shutter speed you will use (or read <i>ExposureTime</i> from the EXIF of a test photo); the line above tells you the slowest shutter that stays sharp.</p>
+        <p><b>Setting it in the app</b> (GS RTK, GS Pro, Pilot 2):</p>
+        <ul style="margin:4px 0 4px 18px;padding:0">
+          <li>Use <b>shutter priority</b> (S / Tv) or manual exposure, and enter at least the value shown above. Sunny: 1/1000 – 1/1600 s is typical for a 1" camera at 8 – 10 m/s.</li>
+          <li>Let <b>ISO</b> rise (auto ISO, capped at about 400 – 800 on 1" sensors) rather than slowing the shutter — a little noise hurts less than blur.</li>
+          <li>Aperture f/4 – f/5.6 is sharp on most mapping lenses; on the P1 the fastest shutter (1/2000 s) needs f/5.6 or smaller.</li>
+          <li>Overcast or low sun: <b>fly slower</b> instead of using a slower shutter. Blur halves when speed halves.</li>
+          <li>Prefer cameras with a <b>mechanical or global shutter</b>. Electronic rolling shutters add extra distortion at speed.</li>
+          <li><b>Multispectral cameras</b> (P4 Multispectral, Mavic 3M, MicaSense) expose automatically and do not let you set the shutter. Use this field to check blur for the exposure they actually used (EXIF), and keep speed low in dim light.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>3 · Product &amp; edge target</h2>
+    <label for="goal">Deliverable</label>
+    <select id="goal">
+      <option value="ortho">Orthomosaic — flat / built-up area</option>
+      <option value="veg">Orthomosaic — vegetation, crops, multispectral</option>
+      <option value="3d">3D model / DSM of buildings &amp; structures</option>
+      <option value="lidar">LiDAR point cloud</option>
+    </select>
+    <div class="hint" id="goalHint"></div>
+    <div class="row">
+      <div><label for="edgeF"><span id="edgeFLabel">Min. frontlap at edge (%)</span></label><input id="edgeF" type="number" step="1" min="0" max="99"></div>
+      <div><label for="edgeS">Min. sidelap at edge (%)</label><input id="edgeS" type="number" step="1" min="0" max="99"></div>
+    </div>
+    <div class="hint" id="edgeLive"></div>
+    <details class="explain">
+      <summary>How to set the edge targets</summary>
+      <p><b>What they mean.</b> Points inside your area get the frontlap/sidelap you fly. Points <i>on the boundary</i> only get photos from the inside unless the route continues past the boundary — that extension is the margin. The edge targets are the <b>lowest frontlap and sidelap you accept on the boundary</b> of the area you must deliver. The calculator finds the margin that reaches them.</p>
+      <svg viewBox="0 0 320 150" class="fig" role="img" aria-label="Side view: photo stations with and without margin">
+        <text x="4" y="12" class="ft">Margin = 0 (route stops at boundary)</text>
+        <line x1="10" y1="58" x2="310" y2="58" class="fg"/>
+        <line x1="200" y1="18" x2="200" y2="66" class="fb"/>
+        <text x="204" y="26" class="fs">boundary</text>
+        <g class="fp"><path d="M60 30 L30 58 L90 58 Z"/><path d="M100 30 L70 58 L130 58 Z"/><path d="M140 30 L110 58 L170 58 Z"/><path d="M180 30 L150 58 L210 58 Z"/><path d="M200 30 L170 58 L230 58 Z"/></g>
+        <circle cx="200" cy="58" r="3.5" class="fbad"/>
+        <text x="214" y="54" class="fs">seen from one side only</text>
+        <text x="4" y="88" class="ft">Margin = M (route continues outside)</text>
+        <line x1="10" y1="134" x2="310" y2="134" class="fg"/>
+        <line x1="200" y1="94" x2="200" y2="142" class="fb"/>
+        <g class="fp"><path d="M140 106 L110 134 L170 134 Z"/><path d="M180 106 L150 134 L210 134 Z"/><path d="M220 106 L190 134 L250 134 Z"/><path d="M260 106 L230 134 L290 134 Z"/></g>
+        <circle cx="200" cy="134" r="3.5" class="fok"/>
+        <line x1="200" y1="146" x2="260" y2="146" class="fm"/><text x="230" y="144" class="fs" text-anchor="middle">M</text>
+      </svg>
+      <p><b>Overlap ↔ number of photos.</b> Overlap <i>o</i> along one axis means a point is seen by about 1/(1 − <i>o</i>) photos on that axis. Images per point = (photos along) × (photos across).</p>
+      <table class="mini">
+        <tr><th>Overlap</th><td>50 %</td><td>60 %</td><td>67 %</td><td>70 %</td><td>75 %</td><td>80 %</td><td>85 %</td><td>90 %</td></tr>
+        <tr><th>Photos / axis</th><td>2</td><td>2.5</td><td>3</td><td>3.3</td><td>4</td><td>5</td><td>6.7</td><td>10</td></tr>
+      </table>
+      <p><b>Suggested values</b> (edge frontlap / sidelap):</p>
+      <table class="mini">
+        <tr><th>Deliverable</th><th>Edge target</th><th>Why</th></tr>
+        <tr><td>Orthomosaic, flat / built-up</td><td>70 / 60</td><td>≈ 8 images per edge point: good tie points and seamlines. 60 / 50 (5 images) is the minimum.</td></tr>
+        <tr><td>Vegetation, crops, multispectral</td><td>75 / 65</td><td>Repetitive texture and wind make matching hard; reflectance maps need many views.</td></tr>
+        <tr><td>3D model / DSM</td><td>= flight overlap (e.g. 80 / 70), on object tops</td><td>The model edge should be as good as the centre. Outward façades also need camera stations outside the boundary.</td></tr>
+        <tr><td>LiDAR</td><td>dwell 100 %, sidelap = flight sidelap</td><td>Avoids using only the noisy outer edge of one strip at the boundary.</td></tr>
+      </table>
+      <p><b>Rules.</b> (1) The edge target cannot exceed the overlap you fly — raise the flight overlap first. (2) Keep edge images per point ≥ 5 (e.g. 60 / 50). (3) A higher target means a larger margin, more lines and more flight time. (4) A margin in metres grows with altitude, because footprints grow. (5) Drawing the polygon larger than the deliverable boundary has the same effect as a margin.</p>
+    </details>
+    <label for="objH">Tallest object near boundary (m) — trees, roofs</label>
+    <input id="objH" type="number" step="1" min="0" value="0">
+    <div class="hint">Footprints shrink on top of tall objects, so overlap on rooftops/canopy is lower than on the ground.</div>
+  </div>
+
+  <div class="panel">
+    <h2>4 · Survey area (for coverage map)</h2>
+    <svg viewBox="0 0 320 230" class="fig" role="img" aria-label="Survey area dimensions relative to flight lines">
+      <rect x="62" y="34" width="196" height="150" class="fbuf"/>
+      <rect x="86" y="58" width="148" height="102" class="faoi"/>
+      <g class="ftrack">
+        <line x1="70" y1="34" x2="70" y2="184"/><line x1="100" y1="34" x2="100" y2="184"/><line x1="130" y1="34" x2="130" y2="184"/>
+        <line x1="160" y1="34" x2="160" y2="184"/><line x1="190" y1="34" x2="190" y2="184"/><line x1="220" y1="34" x2="220" y2="184"/><line x1="250" y1="34" x2="250" y2="184"/>
+        <path d="M70 34 Q85 22 100 34 M130 34 Q145 22 160 34 M190 34 Q205 22 220 34 M100 184 Q115 196 130 184 M160 184 Q175 196 190 184 M220 184 Q235 196 250 184"/>
+      </g>
+      <path d="M40 70 L40 140 M34 78 L40 68 L46 78 M34 132 L40 142 L46 132" class="farrow"/>
+      <text x="14" y="110" class="fs" transform="rotate(-90 14 110)" text-anchor="middle">flight direction</text>
+      <path d="M86 206 L234 206 M94 200 L86 206 L94 212 M226 200 L234 206 L226 212" class="fdim"/>
+      <text x="160" y="224" class="ft" text-anchor="middle">Width across flight lines = <tspan id="figW">300</tspan> m</text>
+      <path d="M282 58 L282 160 M276 66 L282 58 L288 66 M276 152 L282 160 L288 152" class="fdim"/>
+      <text x="304" y="109" class="ft" text-anchor="middle" transform="rotate(90 304 109)">Length along lines = <tspan id="figL">250</tspan> m</text>
+      <path d="M234 160 L258 184" class="fm"/><text x="250" y="166" class="fs">M</text>
+      <text x="160" y="113" class="fs" text-anchor="middle">survey area</text>
+      <text x="160" y="16" class="fs" text-anchor="middle">dashed = area + margin M</text>
+    </svg>
+    <div class="hint"><b>Width</b> is measured <b>perpendicular</b> to the flight lines (the direction the aircraft steps from line to line). <b>Length</b> is measured <b>parallel</b> to the flight lines. In DJI apps the line direction is set by the <i>course angle</i> (main course). For an irregular polygon, use the size of its bounding box after rotating it to the course angle.</div>
+    <div class="row">
+      <div><label for="areaW">Width across flight lines (m)</label><input id="areaW" type="number" step="10" value="300"></div>
+      <div><label for="areaL">Length along flight lines (m)</label><input id="areaL" type="number" step="10" value="250"></div>
+    </div>
+    <label for="evalSurf">Evaluate coverage on</label>
+    <select id="evalSurf">
+      <option value="top">Top of tallest object (conservative)</option>
+      <option value="ground">Ground</option>
+    </select>
+    <div class="hint" id="surfHint"></div>
+  </div>
+</aside>
+
+<section>
+  <div class="panel">
+    <h2 data-helpsec="verification">Verification — does every point of the area get enough overlap?</h2>
+    <div id="verdict" class="verdict"></div>
+    <div id="checks"></div>
+    <div class="hint" style="margin-top:8px">Checked by simulating every photo of the plan with the margin you set (see the coverage map) and counting the photos that see each point of the survey area. Assumes nadir photos, a constant height above the evaluated surface (terrain follow, or set the altitude above the <i>highest</i> ground), and no wind drift. Over hilly terrain without terrain follow, overlap drops where the ground rises.</div>
+  </div>
+
+  <div class="panel">
+    <h2 data-helpsec="geometry">Flight geometry</h2>
+    <div class="kpis" id="kpis"></div>
+    <div id="warnings"></div>
+  </div>
+
+  <div class="panel">
+    <h2 data-helpsec="cards">Recommended margin</h2>
+    <div class="cards" id="cards"></div>
+    <div class="hint" style="margin-top:8px">DJI apps apply one margin value as an outward buffer around the whole polygon, so the recommendation is the larger of the along-track and across-track requirements, rounded up to a whole metre.</div>
+  </div>
+
+  <div class="panel">
+    <h2 data-helpsec="yourmargin">Your margin → edge overlap</h2>
+    <label for="margin">Margin (m)</label>
+    <div class="marginbar">
+      <input id="marginRange" type="range" min="0" max="150" step="1" value="0" aria-label="Margin slider">
+      <div><input id="margin" type="number" step="1" min="0" value="0"></div>
+    </div>
+    <div class="hint">Margin (m) — enter the same number in the DJI app.</div>
+    <div style="margin-top:10px"><table id="edgeTable"></table></div>
+    <h3>Margin vs. effective overlap at the boundary</h3>
+    <svg id="chart" viewBox="0 0 640 260" role="img" aria-label="Edge overlap versus margin"></svg>
+    <div class="legend" id="chartLegend"></div>
+  </div>
+
+  <div class="panel">
+    <h2 data-helpsec="map">Coverage map — how much overlap does each spot of the survey area get? <span class="tag" id="mapTag"></span></h2>
+    <div class="maptools">
+      <label for="mapMode">Colour the map by</label>
+      <select id="mapMode">
+        <option value="front">Frontlap (photos along track)</option>
+        <option value="side">Sidelap (lines across track)</option>
+        <option value="images">Images per point (frontlap × sidelap)</option>
+        <option value="target">Pass / fail against your edge targets</option>
+      </select>
+    </div>
+    <div class="hint" id="mapExplain"></div>
+    <div class="mapwrap"><canvas id="map" height="400"></canvas><div id="mapTip" class="maptip hide"></div></div>
+    <div class="legend" id="mapLegend"></div>
+    <div class="legend">
+      <span><span class="sw" style="border:2px solid var(--aoi)"></span>Survey area (your deliverable)</span>
+      <span><span class="sw" style="border:2px dashed var(--buf)"></span>Area + margin (where the drone flies)</span>
+      <span>│ flight lines · • photo positions · flight direction ↕</span>
+      <span>Outside the survey area is dimmed</span>
+    </div>
+    <h3>Survey area by overlap class</h3>
+    <div class="stack" id="mapStack"></div>
+    <div class="legend" id="mapStackLegend"></div>
+    <div class="hint">Hover or tap the map to read the overlap at any spot. The app may start the first line anywhere within one line spacing of the margin edge. Six placements are tested and the map draws the <b>worst</b> one, so what you see is what is guaranteed.</div>
+    <div style="margin-top:10px"><table id="simTable"></table></div>
+  </div>
+
+  <div class="panel">
+    <h2 data-helpsec="summary">Field summary</h2>
+    <div class="formula" id="summary"></div>
+    <button id="copyBtn" style="margin-top:8px">Copy summary</button>
+  </div>
+
+  <div class="panel">
+    <details>
+      <summary>How the calculation works</summary>
+      <p>Footprint and spacing (camera):</p>
+      <div class="formula">GSD = H × pixel pitch / focal length
+Footprint across  W = GSD × pixels across track
+Footprint along   L = GSD × pixels along track
+Photo interval    B = L × (1 − frontlap)
+Line spacing      S = W × (1 − sidelap)
+Images per point (interior) ≈ (L/B) × (W/S)</div>
+      <p>A point in the interior is seen by about <b>L/B</b> photos along track — but photos are whole numbers, so some points get ⌊L/B⌋ and others one more. A flight at overlap <i>o</i> therefore <b>guarantees m = ⌊1/(1 − o)⌋ photos per axis</b> at every point (80 % → 5, 75 % → 4, 70 % → 3, 60 % → 2). The calculator works with these guaranteed counts.</p>
+      <p>A point <i>on the boundary</i> only gets photos from one side unless the route continues past it. Every station within L/2 of the point sees it, so with margin <b>M</b> the stations that can see it lie in an interval of length min(M, L/2) + L/2. Whatever position the app picks for the first photo/line, that interval holds at least</p>
+      <div class="formula">n_edge(M) = ⌊ ( min(M, L/2) + L/2 ) / B ⌋     photos along track
+(same with W and S for lines across track)</div>
+      <p>With <b>M = 0</b> the boundary gets only about half the interior count. With <b>M = L/2</b> (half a footprint) it is as good as the interior. Solving n_edge ≥ m for the edge target <i>o</i>:</p>
+      <div class="formula">m = ⌊ 1/(1 − o) ⌋
+M = m × B − L/2        (along track)
+M = m × S − W/2        (across track)
+Recommended margin = max of the two, rounded up to whole metres</div>
+      <p>The verification panel checks this independently: it places every photo and line of the plan for six different alignments of the first line and counts, at 1,000 sample points along each axis of the area (always including the boundary), how many photos and lines cover each one.</p>
+      <p>For objects of height h, footprints on their tops scale by k = (H − h)/H, so W and L above are replaced by k·W and k·L. This is why tall buildings and tree canopy at the edge need extra margin, and why overlap on rooftops is lower than the value set in the app. A half-footprint margin also puts camera stations outside the boundary so façades facing outward are actually imaged.</p>
+      <p>The coverage map draws the worst of these alignments. Real apps may place lines and triggers slightly differently, add turn segments, or clip the margin, so treat the map as a model and always check the planned route in the app.</p>
+      <p>Rule-of-thumb image counts: ≥ 5 images per point for reliable matching; 3D/forest projects usually need ≥ 9–15 (e.g. 80/70 or 85/75). Preset camera values are taken from published specifications — check them against your own EXIF data if you need high precision, or use “Custom”.</p>
+    </details>
+  </div>
+</section>
+</main>
+
+<script>
+// Camera/LiDAR specifications — manufacturer spec pages / datasheets (checked Nov 2026).
+// minInt:null = not published by the manufacturer (interval check is skipped).
+// Sensor size of 4/3 DJI cameras = official 3.3 µm pitch × pixel count.
+const G_P4='DJI Phantom 4 series', G_M3='DJI Mavic 3 / Matrice 3D / Matrice 4', G_ENT='DJI Matrice 300 / 350 / 400 payloads',
+      G_FW='Fixed-wing / VTOL (non-DJI, own planners)', G_MS='Multispectral (third-party)';
+const DJI43 = {sw:17.42, sh:13.05, iw:5280, ih:3956};
+const PRESETS = {
+  p4p:    {group:G_P4, label:'Phantom 4 Pro / Pro V2.0 — 1" 20 MP, 3:2', kind:'camera', sw:13.2, sh:8.8, iw:5472, ih:3648, f:8.8, minInt:2.0,
+           note:'Mechanical shutter. 2 s = minimum timed-shot interval (DJI).'},
+  p4p43:  {group:G_P4, label:'Phantom 4 Pro / Pro V2.0 — 1" 20 MP, 4:3 mode', kind:'camera', sw:11.73, sh:8.8, iw:4864, ih:3648, f:8.8, minInt:2.0,
+           note:'4:3 crop of the same 1" sensor (4864×3648).'},
+  p4rtk:  {group:G_P4, label:'Phantom 4 RTK — 1" 20 MP, 3:2', kind:'camera', sw:13.2, sh:8.8, iw:5472, ih:3648, f:8.8, minInt:2.0,
+           note:'Same camera as P4 Pro V2.0; DJI GSD = H/36.5 (matches). Min. interval not published — P4 Pro value (2 s) used.'},
+  p4rtk43:{group:G_P4, label:'Phantom 4 RTK — 1" 20 MP, 4:3 mode', kind:'camera', sw:11.73, sh:8.8, iw:4864, ih:3648, f:8.8, minInt:2.0,
+           note:'4:3 crop. Min. interval not published — P4 Pro value (2 s) used.'},
+  p4m:    {group:G_P4, label:'Phantom 4 Multispectral — 1/2.9" 1600×1300 (all 6 cameras)', kind:'camera', sw:4.86, sh:3.95, iw:1600, ih:1300, f:5.74, minInt:null, goal:'veg',
+           note:'Global shutter. Sensor size derived from DJI GSD = H/18.9 (≈3.04 µm). Min. interval not published.'},
+  m3e:    {group:G_M3, label:'Mavic 3 Enterprise (M3E) — 4/3 20 MP wide', kind:'camera', ...DJI43, f:12.29, minInt:0.7,
+           note:'Mechanical shutter, 0.7 s (JPEG). 12.29 mm = EXIF value (GSD H/37.2); one DJI FAQ rounds to 12 mm / H/36.5.'},
+  m3mrgb: {group:G_M3, label:'Mavic 3 Multispectral — RGB camera 4/3 20 MP', kind:'camera', ...DJI43, f:12.29, minInt:0.7,
+           note:'Same RGB camera as M3E. 0.7 s JPEG (3 s JPEG+RAW).'},
+  m3mms:  {group:G_M3, label:'Mavic 3 Multispectral — multispectral cameras 5 MP', kind:'camera', sw:5.18, sh:3.89, iw:2592, ih:1944, f:4.34, minInt:2.0, goal:'veg',
+           note:'G/R/RE/NIR, 1/2.8", 4.34 mm (DJI FAQ); size from DJI GSD = H/21.7 (2.0 µm). 2 s (TIFF).'},
+  m3d:    {group:G_M3, label:'Matrice 3D (Dock 2) — 4/3 20 MP wide', kind:'camera', ...DJI43, f:12.29, minInt:null,
+           note:'Same wide camera as M3E. Min. interval not published for Dock 2.'},
+  m4e:    {group:G_M3, label:'Matrice 4E — 4/3 20 MP wide', kind:'camera', ...DJI43, f:12.29, minInt:0.5,
+           note:'Mechanical shutter, 0.5 s. True focal length not published (24 mm equiv.); M3E value used — FOV 84° implies ≈12.1 mm.'},
+  m4d:    {group:G_M3, label:'Matrice 4D (Dock 3) — 4/3 20 MP wide', kind:'camera', ...DJI43, f:12.29, minInt:0.5,
+           note:'Same wide camera as M4E: mechanical shutter, 0.5 s. Focal length as M4E.'},
+  p1_24:  {group:G_ENT, label:'Zenmuse P1 — 45 MP full frame, 24 mm', kind:'camera', sw:35.9, sh:24.0, iw:8192, ih:5460, f:24, minInt:0.7,
+           note:'Mechanical shutter, 0.7 s. GSD ≈ H/54.5.'},
+  p1_35:  {group:G_ENT, label:'Zenmuse P1 — 45 MP full frame, 35 mm', kind:'camera', sw:35.9, sh:24.0, iw:8192, ih:5460, f:35, minInt:0.7,
+           note:'Mechanical shutter, 0.7 s. GSD ≈ H/79.5.'},
+  p1_50:  {group:G_ENT, label:'Zenmuse P1 — 45 MP full frame, 50 mm', kind:'camera', sw:35.9, sh:24.0, iw:8192, ih:5460, f:50, minInt:0.7,
+           note:'0.7 s. GSD from geometry ≈ H/113.6 (DJI quotes H/120, ~5 % optimistic).'},
+  l1rgb:  {group:G_ENT, label:'Zenmuse L1 — RGB camera 1" 20 MP', kind:'camera', sw:13.2, sh:8.8, iw:5472, ih:3648, f:8.8, minInt:2.5,
+           note:'Mechanical shutter. 2.5 s minimum interval (DJI FAQ).'},
+  l1lidar:{group:G_ENT, label:'Zenmuse L1 — LiDAR', kind:'lidar', fovX:70.4, goal:'lidar',
+           modes:{rep:{label:'Repetitive (70.4° × 4.5°)', fovY:4.5}, nonrep:{label:'Non-repetitive (70.4° × 77.2°)', fovY:77.2}}},
+  l2rgb:  {group:G_ENT, label:'Zenmuse L2 — RGB camera 4/3 20 MP', kind:'camera', ...DJI43, f:12.29, minInt:0.7,
+           note:'Mechanical shutter, 0.7 s JPEG (2 s RAW). True focal length not published (24 mm equiv.); M3E value used.'},
+  l2lidar:{group:G_ENT, label:'Zenmuse L2 — LiDAR', kind:'lidar', fovX:70, goal:'lidar',
+           modes:{rep:{label:'Repetitive (70° × 3°)', fovY:3}, nonrep:{label:'Non-repetitive (70° × 75°)', fovY:75}}},
+  l3lidar:{group:G_ENT, label:'Zenmuse L3 — LiDAR', kind:'lidar', fovX:80, goal:'lidar',
+           modes:{linear:{label:'Linear (80° × 3°)', fovY:3}, star:{label:'Star-shaped (80° × 80°)', fovY:80}, nonrep:{label:'Non-repetitive (80° × 80°)', fovY:80}}},
+  wrs61:  {group:G_FW, label:'WingtraRAY SURVEY61 — 61 MP, 35 mm', kind:'camera', sw:35.7, sh:23.9, iw:9504, ih:6336, f:35, minInt:0.4,
+           note:'Leaf shutter, 0.4 s (Wingtra spec sheet). Plan margin in WingtraHub.'},
+  wrgb61: {group:G_FW, label:'WingtraOne Gen II RGB61 — 61 MP, 24 mm', kind:'camera', sw:35.7, sh:23.9, iw:9504, ih:6336, f:24, minInt:0.9,
+           note:'Focal-plane shutter, 0.9 s (Wingtra spec sheet).'},
+  w24:    {group:G_FW, label:'Wingtra Sony a6100 / SURVEY24 — 24 MP, 20 mm', kind:'camera', sw:23.5, sh:15.6, iw:6000, ih:4000, f:20, minInt:1.0,
+           note:'APS-C, focal-plane shutter, 1.0 s (Wingtra spec sheet).'},
+  wrx1:   {group:G_FW, label:'WingtraOne Sony RX1R II — 42 MP, 35 mm', kind:'camera', sw:35.9, sh:24.0, iw:7952, ih:5304, f:35, minInt:null,
+           note:'Legacy payload. Min. trigger interval not published.'},
+  ebsoda: {group:G_FW, label:'eBee X — S.O.D.A. 3D (nadir), 1" 20 MP', kind:'camera', sw:13.2, sh:8.8, iw:5472, ih:3648, f:10.6, minInt:null,
+           note:'Global shutter, 10.6 mm (AgEagle). Sensor size derived. Min. interval not published.'},
+  ebaeria:{group:G_FW, label:'eBee X — Aeria X, APS-C 24 MP', kind:'camera', sw:23.5, sh:15.6, iw:6000, ih:4000, f:18.5, minInt:null,
+           note:'18.5 mm (AgEagle). Sensor size derived. Min. interval not published.'},
+  trlr1:  {group:G_FW, label:'Trinity Pro — Sony ILX-LR1, 61 MP, 24 mm', kind:'camera', sw:35.7, sh:23.8, iw:9504, ih:6336, f:24, minInt:null,
+           note:'Quantum Systems quotes 1.88 cm/px at 120 m (matches). Min. interval not published.'},
+  ixm100: {group:G_FW, label:'Phase One iXM-100 (P3) — 100 MP, 35 mm', kind:'camera', sw:43.9, sh:32.9, iw:11664, ih:8750, f:35, minInt:0.5,
+           note:'3.76 µm. Phase One lists both 2 and 3 fps — the slower 2 fps (0.5 s) is used.'},
+  rep:    {group:G_MS, label:'MicaSense RedEdge-P — multispectral bands', kind:'camera', sw:5.02, sh:3.75, iw:1456, ih:1088, f:5.5, minInt:0.34, goal:'veg',
+           note:'Global shutter, 3.45 µm, 3 captures/s. Plan overlap on the MS bands (not the pan band).'},
+  altum:  {group:G_MS, label:'MicaSense Altum-PT — multispectral bands', kind:'camera', sw:7.12, sh:5.33, iw:2064, ih:1544, f:8, minInt:0.5, goal:'veg',
+           note:'Global shutter, 3.45 µm, 2 captures/s.'},
+  custom: {group:'Other', label:'Custom camera (editable)', kind:'camera'}
+};
+const GOALS = {
+  ortho:{front:80, side:70, edgeF:70, edgeS:60, objH:0,  hint:'Edge target below interior is usually fine for 2D; the outermost strip is often clipped anyway.'},
+  veg:  {front:85, side:75, edgeF:75, edgeS:65, objH:2, hint:'Vegetation and crops are hard to match — keep high overlap. Object height defaults to 2 m (field crops); enter the canopy height for orchards or forest.'},
+  '3d': {front:80, side:70, edgeF:80, edgeS:70, objH:20, hint:'For 3D the boundary should be as good as the interior, measured on rooftops.'},
+  lidar:{front:0,  side:50, edgeF:100, edgeS:50, objH:0, hint:'Edge target = the sidelap you want the boundary to have; along-track = % of full dwell time.'}
+};
+
+const $ = id => document.getElementById(id);
+const num = id => { const v=parseFloat($(id).value);
+  return (typeof HELP!=='undefined' && HELP[id] && Array.isArray(HELP[id].range) && isFinite(v)) ? clampField(id, v) : v; };
+const deg = d => d*Math.PI/180;
+const fmt = (x,d=1) => (x==null||!isFinite(x)) ? '—' : x.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const share = x => x>=1-1e-6 ? '100 %' : (x>=0.995) ? '&gt; 99 %' : (x>0 && x<0.005) ? '&lt; 1 %' : pct(x);
+const pct = x => (x==null||!isFinite(x)) ? '—' : fmt(x*100,0)+' %';
+
+// ---------- setup ----------
+{
+  const groups={};
+  for (const [k,p] of Object.entries(PRESETS)){
+    const g = p.group||'Other';
+    if(!groups[g]){ groups[g]=document.createElement('optgroup'); groups[g].label=g; $('preset').appendChild(groups[g]); }
+    const o=document.createElement('option'); o.value=k; o.textContent=p.label; groups[g].appendChild(o);
+  }
+}
+function isLidar(){ return PRESETS[$('preset').value].kind==='lidar'; }
+
+function applyPreset(){
+  const p = PRESETS[$('preset').value];
+  const custom = $('preset').value==='custom';
+  if (p.kind==='camera' && p.sw){ ['sw','sh','iw','ih','f','minInt'].forEach(k=>$(k).value=(p[k]==null?'':p[k])); $('orient').value=p.orient||'across'; }
+  ['sw','sh','iw','ih','f','minInt'].forEach(k=>$(k).readOnly=!custom);
+  $('orient').disabled=!custom;
+  if (p.kind==='lidar'){
+    $('fovX').value=p.fovX; $('fovX').readOnly=true;
+    $('pattern').innerHTML = Object.entries(p.modes).map(([k,m])=>`<option value="${k}">${m.label}</option>`).join('');
+  }
+  $('lockNote').innerHTML = custom
+    ? 'Custom camera: enter your own sensor values (check your photo EXIF).'
+    : `🔒 Values locked to the published specification of this payload.${p.note?'<br>'+p.note:''}`;
+  $('camFields').classList.toggle('hide', p.kind!=='camera');
+  $('lidarFields').classList.toggle('hide', p.kind!=='lidar');
+  $('frontWrap').classList.toggle('hide', p.kind==='lidar');
+  $('shutterWrap').classList.toggle('hide', p.kind==='lidar');
+  $('shutterHelp').classList.toggle('hide', p.kind==='lidar');
+  $('gsd').disabled = p.kind==='lidar';
+  const wantGoal = p.goal || ($('goal').value==='lidar' ? 'ortho' : $('goal').value);
+  if (p.kind==='lidar') { $('goal').value='lidar'; }
+  else if ($('goal').value!==wantGoal) { $('goal').value=wantGoal; }
+  [...$('goal').options].forEach(o=>o.disabled = (p.kind==='lidar') !== (o.value==='lidar'));
+  applyGoal();
+}
+function applyGoal(){
+  const g = GOALS[$('goal').value];
+  if (!isLidar()) $('front').value=g.front;
+  $('side').value=g.side; $('edgeF').value=g.edgeF; $('edgeS').value=g.edgeS; $('objH').value=g.objH;
+  $('goalHint').textContent=g.hint;
+  $('edgeFLabel').textContent = isLidar() ? 'Along-track dwell at edge (%)' : 'Min. frontlap at edge (%)';
+  syncGsdFromH(); update(true);
+}
+function pitchMm(){ return num('sw')/num('iw'); }
+function syncGsdFromH(){ if(!isLidar()) $('gsd').value = (num('H')*pitchMm()/num('f')*100).toFixed(2); }
+function syncHFromGsd(){ $('H').value = Math.round(num('gsd')/100*num('f')/pitchMm()*10)/10; }
+
+// ---------- core model ----------
+function compute(){
+  const lidar = isLidar();
+  const H = Math.max(1, num('H'));
+  let W, L, gsd=null, front, pxA=null, pxL=null;
+  if (lidar){
+    W = 2*H*Math.tan(deg(num('fovX'))/2);
+    const mode = PRESETS[$('preset').value].modes[$('pattern').value];
+    L = 2*H*Math.tan(deg(mode.fovY)/2);
+    front = 0.99;   // continuous scanning, modelled as dense frames
+  } else {
+    gsd = H*pitchMm()/num('f');            // m/px
+    const across = $('orient').value==='across';
+    const longPx = Math.max(num('iw'),num('ih')), shortPx = Math.min(num('iw'),num('ih'));
+    pxA = across ? longPx : shortPx; pxL = across ? shortPx : longPx;
+    W = gsd*pxA; L = gsd*pxL;
+    front = Math.min(0.97, Math.max(0, num('front')/100));
+  }
+  const side = Math.min(0.97, Math.max(0, num('side')/100));
+  const B = L*(1-front), S = W*(1-side);
+  const h = Math.max(0, Math.min(num('objH')||0, H*0.95));
+  const k = (H-h)/H;
+  const Lt = k*L, Wt = k*W;
+  const nfI = L/B, nsI = W/S, nfT = Lt/B, nsT = Wt/S;
+  // surface on which the edge target is evaluated (ground == tops when h = 0)
+  const surf = h>0 ? $('evalSurf').value : 'ground';
+  const Fl = surf==='top' ? Lt : L, Fw = surf==='top' ? Wt : W;
+  const nfS = Fl/B, nsS = Fw/S;
+
+  let edgeF = Math.min(lidar?1:0.99, Math.max(0, num('edgeF')/100)), edgeS = Math.min(0.99, Math.max(0, num('edgeS')/100));
+  // Edge targets are enforced as GUARANTEED whole-photo counts per axis.
+  // A flight at overlap o guarantees floor(1/(1-o)) photos per axis at every point,
+  // so the boundary must be guaranteed the same number.
+  const nfReq = lidar ? Math.max(1, Math.floor(edgeF*nfS + 1e-6)) : Math.max(1, Math.floor(1/(1-edgeF) + 1e-6));
+  const nsReq = Math.max(1, Math.floor(1/(1-edgeS) + 1e-6));
+  const gF = Math.floor(nfS + 1e-6), gS = Math.floor(nsS + 1e-6);   // guaranteed interior counts
+  const capF = nfReq > gF, capS = nsReq > gS;
+  // A boundary point is seen by every station within F/2 of it; the interval
+  // [-M, F/2] of length M + F/2 holds >= floor((M + F/2)/step) stations for ANY line alignment.
+  // For small areas (narrower than a footprint) both boundaries cut the interval, so solve numerically.
+  const Aw = Math.max(1,num('areaW')), Al = Math.max(1,num('areaL'));
+  const Mf = capF ? Fl/2 : reqMargin(nfReq, Fl, B, Al);
+  const Ms = capS ? Fw/2 : reqMargin(nsReq, Fw, S, Aw);
+  const Mrec = Math.ceil(Math.max(Mf, Ms) - 1e-6);
+  const Mfull = Math.ceil(Math.max(Fl, Fw)/2 - 1e-6);
+
+  const speed = Math.max(0.1, num('speed'));
+  const tInt = B/speed;
+  const blurPx = (!lidar && num('shutter')>0) ? speed*(1/num('shutter'))/gsd : null;
+  return {lidar,H,W,L,gsd,front,side,B,S,h,k,Lt,Wt,nfI,nsI,nfT,nsT,surf,Fl,Fw,nfS,nsS,gF,gS,edgeF,edgeS,nfReq,nsReq,capF,capS,Mf,Ms,Mrec,Mfull,speed,tInt,blurPx,minInt:num('minInt'),pxA,pxL};
+}
+// smallest margin giving >= m stations at every point of an area of size A (footprint F, spacing step)
+function guaranteed(M, F, step, A){ return Math.floor((Math.min(F/2, A+M) + Math.min(F/2, Math.max(M,0)))/step + 1e-6); }
+function reqMargin(m, F, step, A){
+  const M0 = Math.max(0, m*step - F/2);
+  if (guaranteed(M0, F, step, A) >= m) return M0;
+  for (let M=M0; M<=F/2; M+=0.05) if (guaranteed(M, F, step, A) >= m) return M;
+  return F/2;
+}
+// guaranteed number of stations (photos or lines) that see a boundary point, for any alignment
+function edgeN(M, F, step){ return Math.floor((Math.min(Math.max(M,0), F/2) + F/2)/step + 1e-6); }
+function effOverlap(n){ return n<=1 ? 0 : 1-1/n; }   // overlap equivalent to n photos per axis
+function nPhotos(n, unit='photo'){ return n===0 ? `<span style="color:var(--bad)">gap</span>` : `${n} ${unit}${n===1?'':'s'}`; }
+function edgeMetrics(r, M, surf){
+  const F_L = surf==='top'? r.Lt : r.L, F_W = surf==='top'? r.Wt : r.W;
+  const nf = edgeN(M, F_L, r.B), ns = edgeN(M, F_W, r.S);
+  return {nf, ns, front: r.lidar ? Math.min(1, nf/(F_L/r.B)) : effOverlap(nf), side: effOverlap(ns)};
+}
+
+// ---------- discrete coverage simulation ----------
+// stations every `step` from start+off up to end (the app may place the first line anywhere
+// within one spacing of the buffered boundary, so several alignments are tested)
+function positions(start, end, step, off=0){
+  const a=[]; for(let x=start+off; x<=end+1e-9; x+=step) a.push(x);
+  if(!a.length) a.push(start); return a;
+}
+function countWithin(arr, v, half){ let c=0; for(const p of arr) if (Math.abs(v-p)<=half+1e-9) c++; return c; }
+const OFFSETS=[0,0.2,0.4,0.6,0.8,0.999];
+function axisStats(A, M, F, step, need){
+  const N=1000; let worstMin=Infinity, worstOK=1, worstOff=0, worstKey=Infinity;
+  for(const o of OFFSETS){
+    const st=positions(-M, A+M, step, o*step);
+    let mn=Infinity, ok=0;
+    for(let i=0;i<=N;i++){ const c=countWithin(st, A*i/N, F/2); mn=Math.min(mn,c); if(c>=need) ok++; }
+    worstMin=Math.min(worstMin,mn); worstOK=Math.min(worstOK, ok/(N+1));
+    const key=mn*1e6+ok; if(key<worstKey){ worstKey=key; worstOff=o*step; }
+  }
+  return {min:worstMin, ok:worstOK, off:worstOff};
+}
+function simulate(r, M, surf){
+  const Aw = Math.max(1,num('areaW')), Al = Math.max(1,num('areaL'));
+  const Fw = surf==='top'? r.Wt : r.W, Fl = surf==='top'? r.Lt : r.L;
+  const sx = axisStats(Aw, M, Fw, r.S, r.nsReq), sy = axisStats(Al, M, Fl, r.B, r.nfReq);
+  // drawn plan = the worst of the tested alignments, so map and verification agree
+  const xs = positions(-M, Aw+M, r.S, sx.off), ys = positions(-M, Al+M, r.B, sy.off);
+  const lineLen = Al+2*M;
+  const dist = xs.length*lineLen + (Aw+2*M);
+  return {Aw,Al,Fw,Fl,xs,ys,minX:sx.min,minY:sy.min,fracOK:sx.ok*sy.ok,
+          photos: xs.length*ys.length, lines: xs.length, dist, time: dist/r.speed};
+}
+
+// ---------- rendering ----------
+let lastRec = 0;
+function update(resetMarginToRec){
+  const r = compute();
+  if (resetMarginToRec){ setMargin(r.Mrec); }
+  lastRec = r.Mrec;
+  const M = Math.max(0, num('margin')||0);
+  const surf = r.surf;
+  $('evalSurf').disabled = !(r.h>0);
+  $('surfHint').innerHTML = r.h>0
+    ? (surf==='top'
+        ? `Recommendation, chart, map and checks use the <b>${fmt(r.h,0)} m object tops</b>, where footprints are ${fmt((1-r.k)*100,0)} % smaller — this is the stricter case.`
+        : `Recommendation, chart, map and checks use the <b>ground</b>. Rooftops/canopy at the boundary will get less overlap than shown — see the “tops” column in the edge table.`)
+    : `Tallest object height is 0 m, so tops and ground are the same surface and this setting has no effect. Enter an object height in section 3 to enable it.`;
+  $('marginRange').max = Math.max(50, Math.ceil(Math.max(r.W,r.L)*0.75));
+
+  renderKpis(r); renderCards(r, surf); renderEdge(r, M); renderChart(r, M, surf);
+  const sim = simulate(r, M, surf), sim0 = simulate(r, 0, surf);
+  renderMap(r, M, surf, sim); renderSim(r, sim, sim0); renderWarnings(r, M, surf); renderSummary(r, M, sim);
+  renderVerify(r, M, sim);
+  if (typeof validateAll==='function') validateAll();
+  if (!r.lidar){
+    const sharp = r.speed/(0.5*r.gsd), ok1 = r.speed/(1*r.gsd);
+    const b = r.blurPx, cls = b==null ? '' : b<=0.5 ? 'var(--ok)' : b<=1 ? 'var(--warn)' : 'var(--bad)';
+    $('shutterHint').innerHTML = `At ${fmt(r.speed,1)} m/s and ${fmt(r.gsd*100,2)} cm GSD use <b>1/${Math.ceil(sharp/10)*10} s or faster</b> for ≤ 0.5 px blur (1/${Math.ceil(ok1/10)*10} s for ≤ 1 px). `+
+      (b==null ? '' : `Your 1/${num('shutter')} s gives <b style="color:${cls}">${fmt(b,2)} px</b> blur.`);
+  }
+  $('figW').textContent = fmt(sim.Aw,0); $('figL').textContent = fmt(sim.Al,0);
+  $('edgeLive').innerHTML = r.lidar
+    ? `→ Every edge point must be covered by ≥ ${r.nsReq} strip(s) across track and get ≥ ${pct(r.edgeF)} of the interior scan time.`
+    : `→ A ${pct(r.edgeF)} / ${pct(r.edgeS)} target means every edge point must be <b>guaranteed ≥ ${r.nfReq} photos along × ≥ ${r.nsReq} across = ${r.nfReq*r.nsReq} images</b> (what a flight at that overlap guarantees inside the area). Interior of this flight: ${r.gF} × ${r.gS} = ${r.gF*r.gS} guaranteed${r.surf==='top'?' on object tops':''}.`;
+}
+function renderVerify(r, M, sim){
+  const C=[]; // [status, text, value]
+  const surfName = r.surf==='top' ? `on ${fmt(r.h,0)} m object tops` : 'on the ground';
+  const u = r.lidar ? 'strip' : 'line';
+  if (!r.lidar) C.push([true, `Interior frontlap = ${pct(r.front)}: photo every ${fmt(r.B,1)} m (footprint ${fmt(r.L,1)} m along)`, `${r.gF} photos guaranteed${r.surf==='top'?' on tops':''}`]);
+  C.push([true, `Interior sidelap = ${pct(r.side)}: lines every ${fmt(r.S,1)} m (footprint ${fmt(r.W,1)} m across)`, `${r.gS} ${u}s guaranteed${r.surf==='top'?' on tops':''}`]);
+  if (!r.lidar){
+    C.push([sim.minY>=r.nfReq, `Edge frontlap target ${pct(r.edgeF)} → every point of the area seen by ≥ ${r.nfReq} photos along track (${surfName})`, `worst point: ${nPhotos(sim.minY)}`]);
+  } else {
+    C.push([sim.minY>=r.nfReq, `Along-track dwell ≥ ${pct(r.edgeF)} at every point (${surfName})`, `worst point: ${pct(Math.min(1,sim.minY/(sim.Fl/r.B)))}`]);
+  }
+  C.push([sim.minX>=r.nsReq, `Edge sidelap target ${pct(r.edgeS)} → every point of the area covered by ≥ ${r.nsReq} ${u}s across track (${surfName})`, `worst point: ${nPhotos(sim.minX,u)}`]);
+  C.push([sim.fracOK>=0.9999, `Share of the survey area that meets both edge targets`, share(sim.fracOK)]);
+  if (!r.lidar){
+    const minImg = sim.minX*sim.minY;
+    C.push([minImg>=5, `Every point seen by ≥ 5 images in total (photogrammetry minimum)`, `${minImg} at the worst point`]);
+    if (isFinite(r.minInt)) C.push([r.tInt>=r.minInt-1e-6, `Camera can shoot that fast (interval ${fmt(r.tInt,2)} s ≥ ${fmt(r.minInt,1)} s)`, r.tInt>=r.minInt-1e-6?'OK':`max ${fmt(r.B/r.minInt,1)} m/s`]);
+    else C.push(['info', `Camera minimum shooting interval is not published for this payload — check that the app accepts ${fmt(r.tInt,2)} s`, '']);
+  }
+  if (r.h>0 && r.surf==='ground'){
+    const simT = simulate(r, M, 'top');
+    C.push(['info', `On ${fmt(r.h,0)} m object tops (not part of the verdict — set “Evaluate coverage on” to tops to check them)`, `worst: ${simT.minY} × ${simT.minX}, ${pct(simT.fracOK)} meets target`]);
+  }
+  const fails = C.filter(c=>c[0]===false);
+  $('checks').innerHTML = C.map(([ok,t,v])=>`<div class="check"><div class="i ${ok==='info'?'info':ok?'pass':'fail'}">${ok==='info'?'i':ok?'✓':'✗'}</div><div>${t}</div><div class="val">${v}</div></div>`).join('');
+  const v=$('verdict');
+  if (!fails.length){
+    v.className='verdict pass';
+    v.textContent = `✓ Yes — with a ${fmt(M,0)} m margin, every point of the ${fmt(sim.Aw,0)} × ${fmt(sim.Al,0)} m area (including its boundary) meets your edge targets ${surfName}: at least ${r.lidar?'the target dwell':r.nfReq+' photos along'} × ${r.nsReq} ${u}s across, whichever way the app aligns the first line.`;
+  } else {
+    v.className='verdict fail';
+    const hint = (r.capF||r.capS) ? ' The edge target asks for more photos than this overlap gives even in the interior of this surface — raise flight overlap or altitude, or lower the edge target.' : M < r.Mrec ? ` Increase the margin to ${r.Mrec} m.` : '';
+    v.textContent = `✗ No — ${fails.length} check${fails.length>1?'s':''} failed.${hint}`;
+  }
+}
+function setMargin(v){ $('margin').value=v; $('marginRange').value=v; }
+
+function kpi(k,v,s=''){ return `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
+function renderKpis(r){
+  let h='';
+  if (!r.lidar) h+=kpi('GSD', fmt(r.gsd*100,2)+' cm/px', `at ${fmt(r.H,0)} m AGL`);
+  h+=kpi(r.lidar?'Swath across':'Footprint across', fmt(r.W,1)+' m', r.lidar?`FOV ${fmt(num('fovX'),1)}°`:`${r.pxA} px`);
+  h+=kpi(r.lidar?'Scan depth along':'Footprint along', fmt(r.L,1)+' m', r.lidar?$('pattern').selectedOptions[0].text:`${r.pxL} px`);
+  h+=kpi('Line spacing', fmt(r.S,1)+' m', `sidelap ${pct(r.side)}`);
+  if (!r.lidar){
+    h+=kpi('Photo interval', fmt(r.B,1)+' m', `${fmt(r.tInt,2)} s at ${fmt(r.speed,1)} m/s`);
+    h+=kpi('Images / point', fmt(r.nfI*r.nsI,1), `${fmt(r.nfI,1)} along × ${fmt(r.nsI,1)} across`);
+  } else {
+    h+=kpi('Strips / point', fmt(r.nsI,2), 'interior, across track');
+  }
+  if (r.h>0){
+    h+=kpi(`Sidelap on ${fmt(r.h,0)} m tops`, pct(1-r.S/r.Wt), `footprint × ${fmt(r.k,2)}`);
+    if (!r.lidar) h+=kpi(`Frontlap on ${fmt(r.h,0)} m tops`, pct(1-r.B/r.Lt), `${fmt(r.nfT*r.nsT,1)} images / point`);
+  }
+  $('kpis').innerHTML=h;
+}
+function renderCards(r, surf){
+  const e0 = edgeMetrics(r, 0, surf), eR = edgeMetrics(r, r.Mrec, surf), eF = edgeMetrics(r, r.Mfull, surf);
+  const fl = r.lidar ? 'dwell' : 'front';
+  const line = e => r.lidar ? `Edge dwell ${pct(e.front)} · ${nPhotos(e.ns,'strip')} across` : `Edge: ${nPhotos(e.nf)} along × ${nPhotos(e.ns,'line')} across`;
+  const card = (cls,t,m,d,btn) => `<div class="card ${cls}"><div class="t">${t}</div><div class="m">${m} m</div><div class="d">${d}</div><button class="${cls==='rec'?'primary':''}" data-m="${m}">${btn}</button></div>`;
+  $('cards').innerHTML =
+    card('', 'No margin', 0, line(e0)+'<br>The boundary gets only about half the interior coverage.', 'Use 0 m') +
+    card('rec', 'Recommended for your edge target', r.Mrec,
+         line(eR)+`<br>Along-track needs ${fmt(r.Mf,1)} m, across-track ${fmt(r.Ms,1)} m.`, `Use ${r.Mrec} m`) +
+    card('', 'Full (edge = interior)', r.Mfull, line(eF)+'<br>Half a footprint; best for 3D and outward façades.', `Use ${r.Mfull} m`);
+  $('cards').querySelectorAll('button').forEach(b=>b.onclick=()=>{ setMargin(+b.dataset.m); update(false); });
+}
+function renderEdge(r, M){
+  const g = edgeMetrics(r, M, 'ground'), t = edgeMetrics(r, M, 'top');
+  const head = `<tr><th>Guaranteed per point</th><th class="n">Interior</th><th class="n">Edge · ground</th>${r.h>0?`<th class="n">Edge · ${fmt(r.h,0)} m tops</th>`:''}<th class="n">Needed</th></tr>`;
+  const cell = (v, need, txt) => `<td class="n" style="color:${v>=need?'var(--ok)':'var(--bad)'}">${txt}</td>`;
+  const gi = edgeMetrics(r, 1e9, 'ground');
+  let rows = head;
+  if (!r.lidar){
+    rows += `<tr><td>Photos along track <span class="tag">frontlap</span></td><td class="n">${gi.nf} (${pct(r.front)})</td>${cell(g.nf, r.nfReq, `${nPhotos(g.nf)} ≈ ${pct(g.front)}`)}${r.h>0?cell(t.nf, r.nfReq, `${nPhotos(t.nf)} ≈ ${pct(t.front)}`):''}<td class="n">${r.nfReq} (target ${pct(r.edgeF)})</td></tr>`;
+  } else {
+    rows += `<tr><td>Along-track dwell</td><td class="n">100 %</td>${cell(g.nf, r.nfReq, pct(g.front))}${r.h>0?cell(t.nf, r.nfReq, pct(t.front)):''}<td class="n">${pct(r.edgeF)}</td></tr>`;
+  }
+  const u = r.lidar?'strip':'line';
+  rows += `<tr><td>${r.lidar?'Strips':'Lines'} across track <span class="tag">sidelap</span></td><td class="n">${gi.ns} (${pct(r.side)})</td>${cell(g.ns, r.nsReq, `${nPhotos(g.ns,u)} ≈ ${pct(g.side)}`)}${r.h>0?cell(t.ns, r.nsReq, `${nPhotos(t.ns,u)} ≈ ${pct(t.side)}`):''}<td class="n">${r.nsReq} (target ${pct(r.edgeS)})</td></tr>`;
+  if (!r.lidar) rows += `<tr><td>Images per point</td><td class="n">${gi.nf*gi.ns}</td><td class="n">${g.nf*g.ns}</td>${r.h>0?`<td class="n">${t.nf*t.ns}</td>`:''}<td class="n">${r.nfReq*r.nsReq}</td></tr>`;
+  $('edgeTable').innerHTML = rows + `<tr><td colspan="5" class="hint">“≈ %” is the overlap that guarantees the same whole number of photos (2 → 50 %, 3 → 67 %, 4 → 75 %, 5 → 80 %).</td></tr>`;
+}
+function renderChart(r, M, surf){
+  const svg=$('chart'), Wd=640, Ht=260, pl=46, pr=14, pt=12, pb=34;
+  const F_L = surf==='top'? r.Lt : r.L, F_W = surf==='top'? r.Wt : r.W;
+  const xmax = Math.max(10, Math.ceil(Math.max(F_L,F_W)/2*1.15/5)*5, M*1.05);
+  const X = m => pl + m/xmax*(Wd-pl-pr), Y = v => pt + (1-v)*(Ht-pt-pb);
+  const cs = getComputedStyle(document.documentElement);
+  const cF = cs.getPropertyValue('--c-front').trim(), cS = cs.getPropertyValue('--c-side').trim();
+  const ink = cs.getPropertyValue('--ink').trim(), mut = cs.getPropertyValue('--muted').trim(), ln = cs.getPropertyValue('--line').trim();
+  let s='';
+  for(let v=0; v<=1.0001; v+=0.2){ s+=`<line x1="${pl}" x2="${Wd-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="${ln}"/><text x="${pl-6}" y="${Y(v)+4}" text-anchor="end" font-size="11" fill="${mut}">${Math.round(v*100)}%</text>`; }
+  const step = xmax>200?50: xmax>80?20: xmax>40?10:5;
+  for(let m=0; m<=xmax; m+=step){ s+=`<text x="${X(m)}" y="${Ht-pb+16}" text-anchor="middle" font-size="11" fill="${mut}">${m}</text>`; }
+  s+=`<text x="${(pl+Wd-pr)/2}" y="${Ht-4}" text-anchor="middle" font-size="11" fill="${mut}">Margin (m)</text>`;
+  const path = fn => { let d=''; for(let i=0;i<=800;i++){ const m=xmax*i/800; d+=(i?'L':'M')+X(m).toFixed(1)+' '+Y(fn(m)).toFixed(1); } return d; };
+  const fF = m => { const e=edgeMetrics(r,m,surf); return e.front; }, fS = m => edgeMetrics(r,m,surf).side;
+  s+=`<line x1="${pl}" x2="${Wd-pr}" y1="${Y(r.lidar?r.edgeF:effOverlap(r.nfReq))}" y2="${Y(r.lidar?r.edgeF:effOverlap(r.nfReq))}" stroke="${cF}" stroke-dasharray="4 4" opacity=".7"/>`;
+  s+=`<line x1="${pl}" x2="${Wd-pr}" y1="${Y(effOverlap(r.nsReq))}" y2="${Y(effOverlap(r.nsReq))}" stroke="${cS}" stroke-dasharray="4 4" opacity=".7"/>`;
+  s+=`<path d="${path(fF)}" fill="none" stroke="${cF}" stroke-width="2.2"/>`;
+  s+=`<path d="${path(fS)}" fill="none" stroke="${cS}" stroke-width="2.2"/>`;
+  s+=`<line x1="${X(r.Mrec)}" x2="${X(r.Mrec)}" y1="${pt}" y2="${Ht-pb}" stroke="${mut}" stroke-dasharray="2 3"/><text x="${X(r.Mrec)+4}" y="${pt+10}" font-size="11" fill="${mut}">rec. ${r.Mrec} m</text>`;
+  s+=`<line x1="${X(M)}" x2="${X(M)}" y1="${pt}" y2="${Ht-pb}" stroke="${ink}" stroke-width="1.5"/><text x="${X(M)+4}" y="${pt+24}" font-size="11" fill="${ink}" font-weight="600">yours ${fmt(M,0)} m</text>`;
+  svg.innerHTML=s;
+  const fl = r.lidar?'Edge along-track dwell':'Edge frontlap';
+  $('chartLegend').innerHTML = `<span><span class="sw" style="background:${cF}"></span>${fl}</span><span><span class="sw" style="background:${cS}"></span>Edge sidelap</span><span>Stepped lines = overlap equivalent to the guaranteed whole number of photos · dashed = needed for your edge targets · evaluated on ${surf==='top'?'object tops':'ground'}</span>`;
+}
+const VIRIDIS=['#440154','#46327e','#365c8d','#277f8e','#1fa187','#4ac16d','#a0da39','#fde725'];
+// overlap classes for the chosen map mode
+function mapClasses(mode, r){
+  const cs=getComputedStyle(document.documentElement), bad=cs.getPropertyValue('--bad').trim();
+  if (r.lidar && (mode==='front'||mode==='images')) mode='side';
+  if (mode==='target'){
+    const ok=cs.getPropertyValue('--ok').trim(), warn=cs.getPropertyValue('--warn').trim();
+    const rat=(cx,cy)=>Math.min(1,cx/r.nsReq)*Math.min(1,cy/r.nfReq);
+    return {mode, cls:[
+      {label:'Not covered (gap)', color:'#7f1d1d', test:(cx,cy)=>cx===0||cy===0},
+      {label:'Weak: < half of target', color:bad, test:(cx,cy)=>rat(cx,cy)<0.5},
+      {label:'Covered, below target', color:warn, test:(cx,cy)=>!(cx>=r.nsReq&&cy>=r.nfReq)},
+      {label:'Meets edge target', color:ok, meets:true, test:()=>true}]};
+  }
+  if (mode==='images'){
+    const need=r.nfReq*r.nsReq;
+    const edges=[1,3,5,9,15,25];
+    const cls=[{label:'0 (gap)', color:bad, test:(cx,cy)=>cx*cy===0, lo:0}];
+    edges.forEach((lo,i)=>{ const hi=edges[i+1]; cls.push({lo, hi, label: hi?`${lo}–${hi-1} images`:`≥ ${lo} images`, color:VIRIDIS[i+1], test:(cx,cy)=>{const n=cx*cy; return n>=lo&&(!hi||n<hi);} }); });
+    cls.forEach(c=>{ c.meets = c.lo>0 && c.lo>=need; c.partial = c.lo>0 && !c.meets && c.hi && c.hi-1>=need; });
+    return {mode, cls, need};
+  }
+  const axis = mode==='front' ? 'y':'x', need = mode==='front'? r.nfReq : r.nsReq;
+  const unit = mode==='front' ? 'photo' : (r.lidar?'strip':'line');
+  const cls=[{label:'0 (gap)', color:bad, test:(cx,cy)=>(axis==='y'?cy:cx)===0}];
+  for(let n=1;n<=7;n++){
+    const last=n===7;
+    cls.push({n, label: (last?'≥ 7':n)+' '+unit+(n===1?'':'s')+' · '+(n===1?'no overlap':(last?'≥ 86 %':pct(effOverlap(n)))),
+      color:VIRIDIS[n], meets:n>=need,
+      test:(cx,cy)=>{ const c=axis==='y'?cy:cx; return last?c>=7:c===n; }});
+  }
+  return {mode, cls, need};
+}
+let mapState=null;
+function renderMap(r, M, surf, sim){
+  const cv=$('map'), ctx=cv.getContext('2d');
+  const cssW = cv.clientWidth || 600;
+  const x0=-M-sim.Fw/2-5, x1=sim.Aw+M+sim.Fw/2+5, y0=-M-sim.Fl/2-5, y1=sim.Al+M+sim.Fl/2+5;
+  const maxH = 520;
+  const sc = Math.min(cssW/(x1-x0), maxH/(y1-y0));
+  const cssH = Math.round((y1-y0)*sc), drawW=(x1-x0)*sc, offX=(cssW-drawW)/2;
+  const dpr = window.devicePixelRatio||1;
+  cv.width=Math.round(cssW*dpr); cv.height=Math.round(cssH*dpr); cv.style.height=cssH+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,cssW,cssH);
+  const cs=getComputedStyle(document.documentElement);
+  const col = n=>cs.getPropertyValue(n).trim();
+  const px = x => offX+(x-x0)*sc, py = y => cssH-(y-y0)*sc;
+  const C = mapClasses($('mapMode').value, r);
+  const cell=3;
+  const cols=[], rows=[], colX=[], rowY=[];
+  for(let u=0; u<drawW; u+=cell){ const x=x0+(u+cell/2)/sc; colX.push(x); cols.push(countWithin(sim.xs, x, sim.Fw/2)); }
+  for(let v=0; v<cssH; v+=cell){ const y=y0+(cssH-v-cell/2)/sc; rowY.push(y); rows.push(countWithin(sim.ys, y, sim.Fl/2)); }
+  const classOf=(cx,cy)=>{ for(let k=0;k<C.cls.length;k++) if(C.cls[k].test(cx,cy)) return k; return C.cls.length-1; };
+  for(let j=0;j<rows.length;j++){
+    const cy=rows[j], inY=rowY[j]>=0&&rowY[j]<=sim.Al;
+    for(let i=0;i<cols.length;i++){
+      const cx=cols[i];
+      const inA = inY && colX[i]>=0 && colX[i]<=sim.Aw;
+      if((cx===0||cy===0) && !inA) continue;   // leave uncovered surroundings blank
+      const k=classOf(cx,cy);
+      ctx.fillStyle=C.cls[k].color;
+      ctx.fillRect(offX+i*cell, j*cell, cell+0.5, cell+0.5);
+    }
+  }
+  // dim everything outside the survey area
+  ctx.save(); ctx.fillStyle=col('--panel'); ctx.globalAlpha=0.55; ctx.beginPath();
+  ctx.rect(0,0,cssW,cssH); ctx.rect(px(0), py(sim.Al), sim.Aw*sc, sim.Al*sc); ctx.fill('evenodd'); ctx.restore();
+  // flight lines + photos
+  ctx.strokeStyle=col('--track'); ctx.lineWidth=1;
+  if (sim.xs.length<=150){ for(const x of sim.xs){ ctx.beginPath(); ctx.moveTo(px(x),py(-M)); ctx.lineTo(px(x),py(sim.Al+M)); ctx.stroke(); } }
+  if (!r.lidar && sim.photos<=4000){ ctx.fillStyle=col('--track'); for(const x of sim.xs) for(const y of sim.ys){ ctx.beginPath(); ctx.arc(px(x),py(y),1.6,0,7); ctx.fill(); } }
+  // buffer + AOI
+  ctx.setLineDash([6,4]); ctx.strokeStyle=col('--buf'); ctx.lineWidth=1.5;
+  ctx.strokeRect(px(-M), py(sim.Al+M), (sim.Aw+2*M)*sc, (sim.Al+2*M)*sc);
+  ctx.setLineDash([]); ctx.strokeStyle=col('--aoi'); ctx.lineWidth=2.5;
+  ctx.strokeRect(px(0), py(sim.Al), sim.Aw*sc, sim.Al*sc);
+  $('mapTag').textContent = `${fmt(sim.Aw,0)} × ${fmt(sim.Al,0)} m · margin ${fmt(M,0)} m · ${surf==='top'?'on '+fmt(r.h,0)+' m tops':'on ground'}`;
+  mapState={r,sim,x0,y0,sc,offX,cssH,surf};
+
+  // legend + survey-area breakdown
+  const mk = c => c.meets ? ' <span class="ok-mark" title="meets your edge target">✓</span>' : (c.partial ? ' <span class="ok-mark" title="partly meets your edge target">(✓)</span>' : '');
+  $('mapLegend').innerHTML = C.cls.map(c=>`<span><span class="sw" style="background:${c.color}"></span>${c.label}${mk(c)}</span>`).join('') + (C.mode!=='target'?'<span><span class="ok-mark">✓</span> = meets your edge target</span>':'');
+  // area shares from fine 1-D sampling of each axis (separable): exact to ~0.1 %
+  const hist=(st,A,F)=>{ const h={}, N=2000; for(let i=0;i<=N;i++){ const c=countWithin(st, A*i/N, F/2); h[c]=(h[c]||0)+1/(N+1); } return h; };
+  const hx=hist(sim.xs,sim.Aw,sim.Fw), hy=hist(sim.ys,sim.Al,sim.Fl);
+  const shares=new Array(C.cls.length).fill(0); let okShare=0;
+  for(const [cx,wx] of Object.entries(hx)) for(const [cy,wy] of Object.entries(hy)){
+    const X=+cx, Y=+cy, w=wx*wy; shares[classOf(X,Y)]+=w;
+    const ok = C.mode==='front' ? Y>=r.nfReq : C.mode==='side' ? X>=r.nsReq : C.mode==='images' ? X*Y>=C.need : (X>=r.nsReq&&Y>=r.nfReq);
+    if(ok) okShare+=w; }
+  $('mapStack').innerHTML = C.cls.map((c,k)=>shares[k]>0?`<div style="width:${shares[k]*100}%;background:${c.color}" title="${c.label}: ${pct(shares[k])}"></div>`:'').join('');
+  $('mapStackLegend').innerHTML = C.cls.map((c,k)=>shares[k]>0.0005?`<span><span class="sw" style="background:${c.color}"></span>${c.label}${mk(c)}: <b>${shares[k]<0.01?'&lt;1 %':pct(shares[k])}</b></span>`:'').join('');
+  const names = {front:'frontlap', side:'sidelap', images:'images per point', target:'both edge targets'};
+  const expl = {
+    front: `Each spot is coloured by how many photos <b>along the flight line</b> see it — its local frontlap. Interior spots get ${r.gF} or more photos (≈ ${pct(r.front)}). Near the start and end of the lines the count drops unless the margin is large enough. Your edge target needs ≥ ${r.nfReq} photos (✓ classes).`,
+    side: `Each spot is coloured by how many ${r.lidar?'strips':'flight lines'} <b>side by side</b> see it — its local sidelap. Interior spots get ${r.gS} or more (≈ ${pct(r.side)}). Along the left and right edges the count drops unless the margin is large enough. Your edge target needs ≥ ${r.nsReq} (✓ classes).`,
+    images: `Each spot is coloured by the total number of images that see it (photos along × lines across). More images = more reliable matching and a better 3D model. ≥ 5 is the usual minimum; your edge target needs ≥ ${C.need}.`,
+    target: `Green spots meet both edge targets (≥ ${r.nfReq} photos along and ≥ ${r.nsReq} ${r.lidar?'strips':'lines'} across). Amber is covered but below target; red is weak or missing.`
+  };
+  const stripe = (C.mode==='front'||C.mode==='side') ? ' Alternating stripes are normal: a spot falls under N or N+1 photos depending on where it lies between camera stations.' : '';
+  $('mapExplain').innerHTML = (r.lidar && $('mapMode').value!=='side' && $('mapMode').value!=='target' ? 'LiDAR scans continuously, so only sidelap is shown. ' : '') + expl[C.mode] + stripe +
+    ` <b>${share(okShare)} of the survey area meets your target for ${names[C.mode]}.</b>`;
+}
+function mapTip(ev){
+  if(!mapState) return;
+  const {r,sim,x0,y0,sc,offX,cssH}=mapState, cv=$('map'), rect=cv.getBoundingClientRect();
+  const ux=ev.clientX-rect.left, uy=ev.clientY-rect.top;
+  const x=x0+(ux-offX)/sc, y=y0+(cssH-uy)/sc;
+  const cx=countWithin(sim.xs,x,sim.Fw/2), cy=countWithin(sim.ys,y,sim.Fl/2);
+  const inA = x>=0&&x<=sim.Aw&&y>=0&&y<=sim.Al;
+  const ok = cx>=r.nsReq && cy>=r.nfReq;
+  const t=$('mapTip');
+  t.innerHTML = `<b>${inA?'Inside survey area':'Outside survey area'}</b> (${fmt(x,0)}, ${fmt(y,0)} m)<br>`+
+    (r.lidar ? `Sidelap: ${nPhotos(cx,'strip')}` :
+    `Frontlap: ${nPhotos(cy)} ≈ ${pct(effOverlap(cy))}<br>Sidelap: ${nPhotos(cx,'line')} ≈ ${pct(effOverlap(cx))}<br>Images: <b>${cx*cy}</b>`)+
+    `<br><span style="color:${ok?'var(--ok)':'var(--bad)'}">${ok?'✓ meets':'✗ below'} edge target</span>`;
+  t.classList.remove('hide');
+  const tw=t.offsetWidth; t.style.left=Math.max(0,Math.min(ux+12, rect.width-tw-4))+'px'; t.style.top=(uy+12)+'px';
+}
+function renderSim(r, sim, sim0){
+  const over = (a,b)=> b? ` <span style="color:var(--muted)">(+${fmt((a/b-1)*100,0)} % vs. 0 m)</span>`:'';
+  let rows = `<tr><th>Inside survey area</th><th class="n">Value</th></tr>`;
+  rows += `<tr><td>Area meeting edge target</td><td class="n">${pct(sim.fracOK)}</td></tr>`;
+  if (!r.lidar) rows += `<tr><td>Fewest images on any point</td><td class="n">${sim.minX*sim.minY}</td></tr>`;
+  rows += `<tr><td>Fewest ${r.lidar?'strips':'lines'} across any point</td><td class="n">${sim.minX}</td></tr>`;
+  rows += `<tr><td>Flight lines</td><td class="n">${sim.lines}${over(sim.lines,sim0.lines)}</td></tr>`;
+  if (!r.lidar) rows += `<tr><td>Photos (approx.)</td><td class="n">${sim.photos.toLocaleString()}${over(sim.photos,sim0.photos)}</td></tr>`;
+  rows += `<tr><td>Route length (approx.)</td><td class="n">${fmt(sim.dist/1000,2)} km${over(sim.dist,sim0.dist)}</td></tr>`;
+  rows += `<tr><td>Flight time (excl. turns, take-off)</td><td class="n">${fmt(sim.time/60,1)} min</td></tr>`;
+  $('simTable').innerHTML=rows;
+}
+function renderWarnings(r, M, surf){
+  const w=[];
+  const add=(cls,t)=>w.push(`<div class="warn ${cls}">${t}</div>`);
+  if (!r.lidar){
+    if (r.edgeF > r.front+1e-9) add('bad', `Edge frontlap target (${pct(r.edgeF)}) is higher than the frontlap you fly (${pct(r.front)}). No margin can reach it — raise frontlap.`);
+    if (isFinite(r.minInt) && r.tInt < r.minInt) add('bad', `Photo interval ${fmt(r.tInt,2)} s is shorter than the camera minimum ${fmt(r.minInt,1)} s. Slow down to ≤ ${fmt(r.B/r.minInt,1)} m/s, or the app will reduce frontlap/speed for you.`);
+    if (r.blurPx!=null && r.blurPx>0.5) add(r.blurPx>1?'bad':'', `Motion blur ≈ ${fmt(r.blurPx,2)} px at 1/${num('shutter')} s. Aim for &lt; 0.5 px — use a faster shutter or slower speed.`);
+    if (r.nfI*r.nsI < 5) add('bad', `Only ${fmt(r.nfI*r.nsI,1)} images per point in the interior. Photogrammetry generally needs ≥ 5; 3D/vegetation ≥ 9.`);
+    if ($('goal').value==='3d' && r.nfI*r.nsI < 9) add('', `For 3D models ≥ 9 images per point (e.g. 80/70) is a safer minimum; add oblique flights for façades.`);
+  }
+  if (r.edgeS > r.side+1e-9) add('bad', `Edge sidelap target (${pct(r.edgeS)}) is higher than the sidelap you fly (${pct(r.side)}). Raise sidelap.`);
+  if (r.h>0){
+    const st = 1-r.S/r.Wt, ft = 1-r.B/r.Lt;
+    if (st<=0 || (!r.lidar && ft<=0)) add('bad', `On ${fmt(r.h,0)} m objects the images no longer overlap (gaps). Fly higher or increase overlap.`);
+    else if (!r.lidar && ft < 0.6) add('', `Frontlap on ${fmt(r.h,0)} m tops is only ${pct(ft)}. Consider raising frontlap or altitude.`);
+  }
+  const e = edgeMetrics(r, M, surf);
+  if (M < r.Mrec) add('', `Your margin (${fmt(M,0)} m) is below the recommended ${r.Mrec} m — boundary gets ${r.lidar?'dwell':'frontlap'} ${pct(e.front)} / sidelap ${pct(e.side)}.`);
+  else if (r.capF||r.capS) add('', `Your margin (${fmt(M,0)} m) gives the best edge overlap possible on ${fmt(r.h,0)} m tops (${r.lidar?'dwell':'front'} ${pct(e.front)} / side ${pct(e.side)}), but it is below your target. Raise overlap or altitude to reach the target on rooftops/canopy.`);
+  else add('ok', `Your margin (${fmt(M,0)} m) meets the edge target.`);
+  $('warnings').innerHTML=w.join('');
+}
+function renderSummary(r, M, sim){
+  const p = PRESETS[$('preset').value].label;
+  const lines = [
+    `Platform     : ${p}`,
+    `Altitude AGL : ${fmt(r.H,0)} m${r.lidar?'':`   GSD ${fmt(r.gsd*100,2)} cm/px`}`,
+    r.lidar ? `Sidelap      : ${pct(r.side)}   (swath ${fmt(r.W,1)} m, spacing ${fmt(r.S,1)} m)`
+            : `Overlap      : front ${pct(r.front)} / side ${pct(r.side)}   (interval ${fmt(r.B,1)} m, spacing ${fmt(r.S,1)} m)`,
+    !r.lidar ? `Speed        : ${fmt(r.speed,1)} m/s → ${fmt(r.tInt,2)} s per photo` : `Speed        : ${fmt(r.speed,1)} m/s`,
+    `Object height: ${fmt(r.h,0)} m`,
+    `Edge target  : ${r.lidar?'dwell':'front'} ${pct(r.edgeF)} / side ${pct(r.edgeS)}`,
+    `MARGIN       : ${fmt(M,0)} m   (recommended ${r.Mrec} m, full ${r.Mfull} m)`,
+    `Area ${fmt(sim.Aw,0)}×${fmt(sim.Al,0)} m: ${sim.lines} lines${r.lidar?'':`, ~${sim.photos.toLocaleString()} photos`}, ~${fmt(sim.dist/1000,2)} km`
+  ];
+  $('summary').textContent = lines.join('\n');
+}
+
+// ---------- events ----------
+$('preset').addEventListener('change', applyPreset);
+$('goal').addEventListener('change', applyGoal);
+$('H').addEventListener('input', ()=>{ syncGsdFromH(); update(true); });
+$('gsd').addEventListener('input', ()=>{ syncHFromGsd(); update(true); });
+['sw','iw','f'].forEach(id=>$(id).addEventListener('input', ()=>{ syncGsdFromH(); update(true); }));
+['sh','ih','minInt','orient','front','side','speed','shutter','edgeF','edgeS','objH','fovX','pattern']
+  .forEach(id=>$(id).addEventListener('input', ()=>update(true)));
+['areaW','areaL'].forEach(id=>$(id).addEventListener('input', ()=>update(true)));
+$('evalSurf').addEventListener('input', ()=>update(true));
+$('marginRange').addEventListener('input', ()=>{ $('margin').value=$('marginRange').value; update(false); });
+$('margin').addEventListener('input', ()=>{ $('marginRange').value=$('margin').value; update(false); });
+$('mapMode').addEventListener('input', ()=>update(false));
+$('map').addEventListener('mousemove', mapTip);
+$('map').addEventListener('click', mapTip);
+$('map').addEventListener('mouseleave', ()=>$('mapTip').classList.add('hide'));
+$('copyBtn').addEventListener('click', async ()=>{
+  try { await navigator.clipboard.writeText($('summary').textContent); $('copyBtn').textContent='Copied ✓'; }
+  catch(e){ $('copyBtn').textContent='Copy failed — select text manually'; }
+  setTimeout(()=>$('copyBtn').textContent='Copy summary',1500);
+});
+window.addEventListener('resize', ()=>update(false));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>update(false));
+
+document.querySelectorAll('input,select').forEach(e=>e.setAttribute('autocomplete','off'));
+// =====================================================================
+// HELP SYSTEM — one source for: "?" popovers, the Help centre's settings
+// reference table, and input range validation.
+// range: [min, max] hard limits (out of range = error, value is clamped).
+// advise: [min, max] recommended range (outside = advisory note only).
+// =====================================================================
+const HELP = {
+  preset: {title:'Platform / payload', section:'Aircraft & sensor',
+    what:'The drone and camera (or LiDAR) you will fly. It fills in the sensor values below from the manufacturer\'s published specifications.',
+    range:'Choose from the list. “Custom camera” lets you type your own values.',
+    typical:'Phantom 4 Multispectral (default), Phantom 4 RTK, Mavic 3E, Matrice 350/400 with P1 or L2.',
+    effect:'Changes sensor size, resolution and focal length, so it changes GSD, footprint, line spacing and the recommended margin.',
+    tip:'Read the note under the list: it says where each value comes from and flags anything not published by the manufacturer.'},
+  sw: {title:'Sensor width', unit:'mm', range:[1,60], section:'Aircraft & sensor',
+    what:'Physical width of the image sensor\'s active area (the long side).',
+    typical:'1" sensor 13.2 mm · 4/3 sensor 17.4 mm · APS-C 23.5 mm · full frame 35.9 mm.',
+    effect:'With image width it gives the pixel size: pixel pitch = sensor width ÷ image width. Bigger pixels at the same focal length = larger GSD.',
+    tip:'Locked for presets. For “Custom camera”, take it from the camera datasheet.'},
+  sh: {title:'Sensor height', unit:'mm', range:[1,60], section:'Aircraft & sensor',
+    what:'Physical height of the image sensor\'s active area (the short side).',
+    typical:'1" sensor 8.8 mm (3:2) · 4/3 sensor 13.0 mm · full frame 24.0 mm.',
+    effect:'Shown for reference; the calculator uses width ÷ pixels for the pixel size (square pixels).'},
+  iw: {title:'Image width', unit:'px', range:[100,20000], section:'Aircraft & sensor',
+    what:'Number of pixels along the long side of each photo.',
+    typical:'P4 Pro / P4 RTK 5472 · Mavic 3E 5280 · P1 8192 · P4 Multispectral 1600.',
+    effect:'Footprint across track = GSD × image width (when the long side is across track).',
+    tip:'For Custom: read “Image Width” from the EXIF of one of your photos.'},
+  ih: {title:'Image height', unit:'px', range:[100,20000], section:'Aircraft & sensor',
+    what:'Number of pixels along the short side of each photo.',
+    typical:'P4 Pro 3648 (3:2) · Mavic 3E 3956 · P1 5460 · P4 Multispectral 1300.',
+    effect:'Footprint along track = GSD × image height. A shorter footprint along track means photos must be taken more often for the same frontlap.'},
+  f: {title:'Focal length', unit:'mm', range:[1,200], section:'Aircraft & sensor',
+    what:'The lens\'s real focal length (not the “35 mm equivalent”).',
+    typical:'P4 Pro / P4 RTK 8.8 mm · Mavic 3E 12.29 mm · P4 Multispectral 5.74 mm · P1 24/35/50 mm.',
+    effect:'GSD = altitude × pixel pitch ÷ focal length. A longer lens gives finer GSD but a smaller footprint, so more lines and photos.',
+    tip:'For Custom: EXIF “FocalLength” is the real value; “FocalLengthIn35mmFormat” is not.'},
+  minInt: {title:'Minimum photo interval', unit:'s', range:[0.1,10], section:'Aircraft & sensor',
+    what:'The shortest time the camera needs between two photos in a mapping mission.',
+    typical:'P4 Pro 2 s · L1 2.5 s · Mavic 3E / P1 0.7 s · Matrice 4E 0.5 s. Empty = not published by the manufacturer.',
+    effect:'If the time between photos (photo interval ÷ speed) is shorter than this, the camera cannot keep up: the app will slow the aircraft or skip photos, and frontlap drops.',
+    tip:'Slow down or fly higher if the verification panel shows a red interval check.'},
+  orient: {title:'Camera orientation', section:'Aircraft & sensor',
+    what:'Whether the long side of each photo points across the flight lines (normal) or along them.',
+    range:'Locked for presets (long side across track). Editable for Custom.',
+    effect:'Long side across track gives wider line spacing (fewer lines). Long side along track gives longer footprints along the line (fewer photos per line, more lines).',
+    tip:'In DJI GS Pro the “shooting angle” (parallel / vertical to main path) can change this. Match the setting you use.'},
+  fovX: {title:'LiDAR field of view across track', unit:'°', range:[10,180], section:'Aircraft & sensor',
+    what:'How wide the LiDAR scans to the left and right of the flight line.',
+    typical:'L1 70.4° · L2 70° · L3 80°.',
+    effect:'Swath width = 2 × altitude × tan(FOV ÷ 2). Line spacing = swath × (1 − sidelap).'},
+  pattern: {title:'LiDAR scan mode', section:'Aircraft & sensor',
+    what:'The scanning pattern. It sets the along-track depth of the scan.',
+    range:'Repetitive / linear (narrow, a few degrees) or non-repetitive / star (wide, ~75–80°).',
+    effect:'A deeper along-track scan means a boundary point is scanned for longer before and after the aircraft passes, which changes the along-track margin needed.',
+    tip:'Repetitive/linear is usual for mapping (even point density); non-repetitive covers more angles (vegetation, structures).'},
+  H: {title:'Altitude above ground (AGL)', unit:'m', range:[5,500], advise:[20,120], section:'Flight parameters',
+    what:'Flying height above the ground (or above the take-off point if you do not use terrain follow).',
+    typical:'P4 RTK mapping 60–120 m · LiDAR 50–150 m.',
+    effect:'Higher = coarser GSD, larger footprint, fewer lines and photos, and a larger margin in metres (margin scales with footprint).',
+    tip:'Most countries limit drones to about 120 m AGL — check your local regulation. Over hills without terrain follow, overlap drops where the ground rises: enter the height above the HIGHEST ground.'},
+  gsd: {title:'GSD — ground sample distance', unit:'cm/px', range:[0.05,50], section:'Flight parameters',
+    what:'Size of one image pixel on the ground. Linked to altitude: change either one and the other follows.',
+    typical:'Orthomosaic 1–3 cm · multispectral 3–8 cm · large-area 5–10 cm.',
+    effect:'GSD = altitude × pixel pitch ÷ focal length. Smaller GSD = more detail, lower altitude, more flight time.',
+    tip:'Your accuracy is typically 1–3 × GSD horizontally — choose GSD from the accuracy you need.'},
+  front: {title:'Frontlap', unit:'%', range:[10,95], advise:[70,90], section:'Flight parameters',
+    what:'How much each photo overlaps the next one along the same flight line. Same value you enter in the DJI app.',
+    typical:'Orthomosaic 75–80 % · 3D model 80–85 % · vegetation / multispectral 80–90 %.',
+    effect:'Photo interval = footprint along × (1 − frontlap). Guaranteed photos per point along track = ⌊1 ÷ (1 − frontlap)⌋: 75 % → 4, 80 % → 5, 85 % → 6.',
+    tip:'Frontlap is “cheap”: it adds photos but not flight lines. Raise it first when matching is hard.'},
+  side: {title:'Sidelap', unit:'%', range:[10,95], advise:[60,85], section:'Flight parameters',
+    what:'How much neighbouring flight lines overlap. Same value you enter in the DJI app.',
+    typical:'Orthomosaic 60–70 % · 3D model 70–80 % · vegetation 70–80 % · LiDAR 20–50 %.',
+    effect:'Line spacing = footprint across × (1 − sidelap). Higher sidelap = more lines and longer flights.',
+    tip:'Sidelap is “expensive”: each step up adds whole flight lines.'},
+  speed: {title:'Flight speed', unit:'m/s', range:[0.5,30], advise:[2,15], section:'Flight parameters',
+    what:'Ground speed during photo capture.',
+    typical:'P4 series 5–10 m/s · Mavic 3E up to 15 m/s · fixed-wing 15–20 m/s.',
+    effect:'Time between photos = photo interval ÷ speed (must be ≥ camera minimum interval). Faster also means more motion blur.',
+    tip:'Most DJI apps compute a maximum speed for you — this field lets you check blur and interval at the speed you will actually fly.'},
+  shutter: {title:'Shutter speed (1/x s)', unit:'1/x s', range:[25,8000], advise:[500,4000], section:'Flight parameters',
+    what:'Exposure time of each photo, entered as the denominator: 1000 means 1/1000 s.',
+    typical:'Sunny 1/1000–1/1600 s for 1" cameras at 8–10 m/s. Multispectral cameras set it automatically.',
+    effect:'Motion blur (px) = speed × exposure ÷ GSD. Keep ≤ 0.5 px for 3D, ≤ 1 px for orthomosaics.',
+    tip:'In dim light fly slower rather than using a slower shutter. See “How to set the shutter speed”.'},
+  goal: {title:'Deliverable', section:'Product & edge target',
+    what:'What you will produce. It loads suitable defaults for overlap, edge targets and object height.',
+    range:'Orthomosaic (flat/built-up) · Orthomosaic (vegetation/multispectral) · 3D model/DSM · LiDAR point cloud.',
+    effect:'Only sets starting values — every value can still be changed.'},
+  edgeF: {title:'Minimum frontlap at the edge', unit:'%', range:[0,99], section:'Product & edge target',
+    what:'The lowest frontlap you accept for points ON the boundary of your survey area. For LiDAR: the share of full scan time an edge point must get.',
+    rangeNote:'0 % up to the frontlap you fly (it cannot be higher).',
+    typical:'Orthomosaic 70 % · vegetation 75 % · 3D = flight frontlap.',
+    effect:'Converted to whole photos: ⌊1 ÷ (1 − target)⌋. A higher target needs a larger margin.',
+    tip:'Targets between steps behave like the step below: 70 % and 74 % both mean “≥ 3 photos”, 75 % means “≥ 4”.'},
+  edgeS: {title:'Minimum sidelap at the edge', unit:'%', range:[0,99], section:'Product & edge target',
+    what:'The lowest sidelap you accept for points ON the boundary of your survey area.',
+    rangeNote:'0 % up to the sidelap you fly.',
+    typical:'Orthomosaic 60 % · vegetation 65 % · 3D = flight sidelap · LiDAR = flight sidelap.',
+    effect:'Converted to whole lines: ⌊1 ÷ (1 − target)⌋. Usually this decides the margin, because footprints are widest across track.',
+    tip:'60–66 % → 2 lines, 67–74 % → 3 lines, 75–79 % → 4 lines.'},
+  objH: {title:'Tallest object near the boundary', unit:'m', range:[0,400], section:'Product & edge target',
+    what:'Height of the tallest trees, crops or buildings close to the edge of the area.',
+    rangeNote:'0 m up to 90 % of the flight altitude.',
+    typical:'Field crops 0–2 m · orchards 3–8 m · forest 15–40 m · buildings as measured.',
+    effect:'On top of an object of height h the footprint shrinks by (H − h) ÷ H, so overlap there is lower. When “Evaluate coverage on” is tops, the margin is computed on those tops.',
+    tip:'Use 0 m for flat bare ground. For 3D models of buildings, enter the roof height.'},
+  areaW: {title:'Width across flight lines', unit:'m', range:[1,20000], section:'Survey area',
+    what:'Size of your survey area measured perpendicular to the flight lines (the direction the aircraft steps from line to line).',
+    typical:'Any — measure it on the map in your planning app.',
+    effect:'Used for the coverage map, line count, flight time and the verification. For areas narrower than one footprint it also raises the recommended margin.',
+    tip:'For an irregular polygon use the bounding box after rotating it to the course angle.'},
+  areaL: {title:'Length along flight lines', unit:'m', range:[1,20000], section:'Survey area',
+    what:'Size of your survey area measured parallel to the flight lines.',
+    effect:'Used for the coverage map, photo count, route length and the verification.'},
+  evalSurf: {title:'Evaluate coverage on', section:'Survey area',
+    what:'Which surface the recommendation, chart, map and verification are computed for.',
+    range:'Top of tallest object (stricter) · Ground. Disabled when object height is 0 m (the two are identical).',
+    effect:'Tops: footprints are smaller, so the margin is larger and some targets may become impossible. Ground: rooftops/canopy at the edge may get less than shown.',
+    tip:'Use “tops” for 3D models and forests; “ground” is fine for crops and flat sites.'},
+  margin: {title:'Margin', unit:'m', range:[0,2000], section:'Your margin',
+    what:'How far the route continues beyond the survey boundary on every side. This is the number you enter in the DJI app\'s “Margin” setting.',
+    rangeNote:'0 m up to about half the footprint; more than half a footprint adds flight time without adding overlap.',
+    effect:'Larger margin = boundary points get more photos (better edges) but more lines, photos and flight time.',
+    tip:'Start from the recommended value. If your app caps the margin lower, draw the polygon larger by the missing distance.'},
+  mapMode: {title:'Colour the map by', section:'Coverage map',
+    what:'Which overlap measure the coverage map shows.',
+    range:'Frontlap · Sidelap · Images per point · Pass/fail.',
+    effect:'Display only — does not change any result.'}
+};
+// Results sections (popovers on headings)
+const HELP_SECTIONS = {
+  verification: {title:'Verification', what:'The yes/no answer: does every point of your survey area, including its boundary, get at least the edge-target overlap with the margin you set?', effect:'Each check is computed by placing every photo and flight line of the plan (six different placements of the first line) and counting, at 1,000 points along each axis, how many photos and lines see each point. The worst result is reported.', tip:'If it says No, the message tells you whether to increase the margin or whether the target is impossible with your overlap.'},
+  geometry: {title:'Flight geometry', what:'The basic numbers of the plan: GSD, footprint, line spacing, distance between photos, images per point and, with tall objects, the overlap on their tops.', tip:'“Images per point” is the interior average; the guaranteed minimum is shown in the verification panel.'},
+  cards: {title:'Recommended margin', what:'Three choices. No margin: what the boundary gets if the route stops at the edge. Recommended: the smallest margin that meets your edge targets. Full: half a footprint, where the boundary is as good as the interior.', tip:'Click a card\'s button to apply it.'},
+  yourmargin: {title:'Your margin → edge overlap', what:'Set the margin you plan to use and see what the boundary gets. The table lists guaranteed photos and lines per point; the chart shows how edge overlap rises in steps as the margin grows.', tip:'Steps happen because photos come in whole numbers: overlap jumps from 67 % (3 photos) to 75 % (4 photos) with nothing in between.'},
+  map: {title:'Coverage map', what:'A top view of your area. Each spot is coloured by how many photos/lines see it. The solid outline is the survey area, the dashed outline is the area + margin where the drone flies.', tip:'Hover a spot for exact numbers. The bar under the map shows what share of the survey area falls in each class.'},
+  summary: {title:'Field summary', what:'A plain-text summary of the plan to copy into a field log or brief.'}
+};
+
+const HELP_TOPICS = [
+ {id:'quick', title:'Quick start', html:`
+  <ol>
+   <li><b>Choose your payload</b> (section 1). Sensor values are filled in and locked.</li>
+   <li><b>Set altitude or GSD, frontlap and sidelap</b> (section 2) — the same values you will enter in the DJI app. Add speed and shutter to check blur and camera interval.</li>
+   <li><b>Choose the deliverable</b> (section 3). It loads sensible edge targets; adjust them and enter the height of the tallest objects near the boundary.</li>
+   <li><b>Enter the survey area size</b> (section 4) — width across and length along the flight lines.</li>
+   <li><b>Read the recommended margin</b> and enter it (or your own value) in “Your margin”.</li>
+   <li><b>Check the verification panel</b>: a green “Yes” means every point of the area — including the boundary — gets your target overlap. Use the coverage map to see where overlap is weaker.</li>
+   <li><b>Enter the margin in your DJI app</b>, together with the same altitude and overlap.</li>
+  </ol>
+  <p>Hover or tap any <span class="qmark-demo">?</span> next to a setting for its meaning, valid range and typical values. Values outside the valid range are outlined in red.</p>`},
+ {id:'concepts', title:'Key concepts', html:`
+  <h4>GSD and footprint</h4>
+  <p><b>GSD</b> (ground sample distance) is the ground size of one pixel: GSD = altitude × pixel pitch ÷ focal length. The <b>footprint</b> is the ground area of one photo: GSD × image width by GSD × image height.</p>
+  <h4>Frontlap and sidelap</h4>
+  <p><b>Frontlap</b> is the overlap between consecutive photos on a line; <b>sidelap</b> the overlap between neighbouring lines. They set the <b>photo interval</b> B = footprint along × (1 − frontlap) and the <b>line spacing</b> S = footprint across × (1 − sidelap).</p>
+  <h4>Images per point</h4>
+  <p>Overlap o means each point is seen by about 1 ÷ (1 − o) photos on that axis. Photos come in whole numbers, so every point is <b>guaranteed ⌊1 ÷ (1 − o)⌋</b>: 50 % → 2, 67 % → 3, 75 % → 4, 80 % → 5, 85 % → 6. Images per point = photos along × lines across. Photogrammetry needs at least 5; 3D and vegetation work best with 9 or more.</p>
+  <h4>The edge effect</h4>
+  <p>A point inside the area is photographed from both sides. A point on the boundary is only photographed from the inside — unless the route continues past it. With no margin, boundary points get about <b>half</b> the photos of interior points, so orthomosaics and 3D models are weak and distorted at the edges.</p>
+  <h4>Margin</h4>
+  <p>The <b>margin</b> extends the route beyond the boundary on all sides. The stations that can see a boundary point lie within half a footprint of it, so the guaranteed count at the boundary is ⌊(min(M, F/2) + F/2) ÷ step⌋. Solving for your edge target gives the recommended margin: M = m × step − F/2, where m is the required number of photos (or lines). A margin of <b>half a footprint</b> makes the boundary as good as the interior; more than that adds nothing.</p>
+  <h4>Edge targets</h4>
+  <p>The <b>edge targets</b> are the minimum frontlap/sidelap you accept on the boundary. They are converted to whole photos and lines and checked at every point of the area.</p>
+  <h4>Tall objects</h4>
+  <p>On top of an object of height h, footprints shrink by (H − h) ÷ H, so overlap there is lower than on the ground. Rooftops and tree canopy at the edge therefore need more margin — and very tall objects may need higher overlap or altitude.</p>
+  <h4>Line placement</h4>
+  <p>Apps may start the first line anywhere within one line spacing of the buffered edge. The calculator guarantees its result for any placement and the map draws the worst one.</p>
+  <h4>LiDAR</h4>
+  <p>LiDAR scans continuously, so there is no frontlap. Along track, the edge quality is the share of full scan time a boundary point receives (“dwell”). Across track it works like sidelap: swath = 2 × altitude × tan(FOV ÷ 2).</p>`},
+ {id:'settings', title:'Settings reference', html:'__SETTINGS_TABLE__'},
+ {id:'results', title:'Reading the results', html:'__RESULTS__'},
+ {id:'dji', title:'Using it with DJI apps', html:`
+  <p>Plan the mission in the calculator, then enter the same values in GS RTK, GS Pro or Pilot 2:</p>
+  <ol>
+   <li><b>Camera / payload</b> — same as in the calculator.</li>
+   <li><b>Altitude or GSD</b> — the app shows the same GSD for the same altitude (small differences come from rounding of focal length).</li>
+   <li><b>Frontlap and sidelap</b> — same percentages.</li>
+   <li><b>Course angle</b> (main course direction) — the direction of the flight lines. Measure the survey area's width across and length along this direction.</li>
+   <li><b>Margin</b> — enter the recommended (or your chosen) value in metres. It is usually under the advanced settings of the mapping mission.</li>
+   <li><b>Speed / shooting interval</b> — keep the time between photos at or above the camera's minimum interval, and check blur with your shutter speed.</li>
+  </ol>
+  <p><b>If the app limits the margin</b> to less than you need, draw the polygon larger by the missing distance; this has the same effect.</p>
+  <p><b>Terrain:</b> without terrain follow, altitude is measured from the take-off point. Over rising ground the real height — and so the footprint and overlap — gets smaller. Enter the height above the highest ground, or use terrain follow.</p>
+  <p><b>Always compare</b> the route the app draws with the calculator's coverage map before flying. Apps may add turns, place lines differently or clip the margin. Menu names and limits differ between app versions, so look for the matching setting in yours.</p>`},
+ {id:'faq', title:'FAQ & troubleshooting', html:`
+  <h4>The recommended margin is very large. Why?</h4>
+  <p>Margin scales with the footprint. High altitude, wide-angle lenses and LiDAR swaths make it large. Sidelap targets usually decide it, because footprints are widest across track. Lower the edge target if a weaker edge is acceptable (for example when you will clip the outer strip anyway).</p>
+  <h4>The verification says “No” even with the recommended margin.</h4>
+  <p>Your edge target asks for more photos than the overlap you fly can give on the evaluated surface — usually on tall rooftops or canopy. Raise frontlap/sidelap or altitude, or lower the edge target.</p>
+  <h4>I asked for 70 % at the edge but the table shows 67 %.</h4>
+  <p>Photos come in whole numbers. 70 % needs ⌊1 ÷ 0.3⌋ = 3 photos, which is the overlap equivalent of 67 %. The check passes when the boundary gets those 3 photos — the same that an interior point of a 70 % flight is guaranteed.</p>
+  <h4>Why does the coverage map have stripes?</h4>
+  <p>At 85 % frontlap the average is 6.7 photos per point, so some spots get 6 and others 7 depending on where they fall between photos. That is normal.</p>
+  <h4>Why can't I edit the sensor values?</h4>
+  <p>They are locked to the published specification of the payload to prevent mistakes. Choose “Custom camera” to enter your own values.</p>
+  <h4>The camera-interval check is red.</h4>
+  <p>The aircraft reaches the next photo position faster than the camera can shoot. Fly slower (the check shows the maximum speed), fly higher or reduce frontlap.</p>
+  <h4>A field has a red outline.</h4>
+  <p>The value is outside the valid range shown in its help. The calculator uses the nearest valid value until you correct it.</p>
+  <h4>Is the result exact?</h4>
+  <p>It is exact for the model: a rectangular area, nadir photos, constant height above the evaluated surface and no wind drift. Real routes add turns, terrain changes and drift, so keep a small safety margin and check the planned route in the app.</p>`},
+ {id:'glossary', title:'Glossary', html:`
+  <dl class="gloss">
+   <dt>AGL</dt><dd>Above ground level — height measured from the ground below the aircraft.</dd>
+   <dt>Course angle</dt><dd>Direction of the flight lines in a mapping mission.</dd>
+   <dt>Dwell</dt><dd>LiDAR: the time a point stays inside the scanner's field of view, relative to an interior point.</dd>
+   <dt>Edge target</dt><dd>Minimum overlap required on the boundary of the survey area.</dd>
+   <dt>Footprint</dt><dd>Ground area covered by one photo (or the LiDAR swath width).</dd>
+   <dt>Frontlap</dt><dd>Overlap between consecutive photos along a flight line.</dd>
+   <dt>GSD</dt><dd>Ground sample distance — ground size of one pixel.</dd>
+   <dt>Guaranteed count</dt><dd>The number of photos (or lines) that every point is sure to get, whatever the line placement.</dd>
+   <dt>Line spacing</dt><dd>Distance between neighbouring flight lines.</dd>
+   <dt>Margin</dt><dd>Distance the route continues beyond the survey boundary.</dd>
+   <dt>Motion blur</dt><dd>Smear of the image during exposure, in pixels.</dd>
+   <dt>Nadir</dt><dd>Camera pointing straight down.</dd>
+   <dt>Photo interval</dt><dd>Distance (or time) between consecutive photos on a line.</dd>
+   <dt>Pixel pitch</dt><dd>Physical size of one sensor pixel (sensor width ÷ image width).</dd>
+   <dt>Sidelap</dt><dd>Overlap between neighbouring flight lines.</dd>
+   <dt>Survey area</dt><dd>The area you must deliver (orthomosaic, 3D model, point cloud).</dd>
+   <dt>Swath</dt><dd>Width scanned by a LiDAR across the flight line.</dd>
+  </dl>`}
+];
+
+// ---------- range helpers ----------
+function fieldRange(id){
+  const h=HELP[id]; if(!h || !Array.isArray(h.range)) return null;
+  let [mn,mx]=h.range;
+  if(id==='edgeF' && !isLidar()) mx=Math.min(mx, num('front'));
+  if(id==='edgeF' && isLidar()) mx=100;
+  if(id==='edgeS') mx=Math.min(mx, num('side'));
+  if(id==='objH') mx=Math.round(num('H')*0.9);
+  return [mn,mx];
+}
+function rangeText(id){
+  const h=HELP[id], r=fieldRange(id); if(!r) return h.range||'';
+  const u=h.unit?` ${h.unit}`:'';
+  let t=`Valid: ${r[0]} – ${r[1]}${u}`;
+  if(h.advise) t+=` · recommended ${h.advise[0]} – ${h.advise[1]}${u}`;
+  if(h.rangeNote) t+=`. ${h.rangeNote}`;
+  return t;
+}
+function validateAll(){
+  let bad=0;
+  for(const id of Object.keys(HELP)){
+    const el=$(id); if(!el || el.tagName!=='INPUT' || el.readOnly || el.disabled) { if(el) clearValidation(el); continue; }
+    if(el.closest('.hide')) { clearValidation(el); continue; }
+    const r=fieldRange(id); if(!r) continue;
+    const v=parseFloat(el.value), h=HELP[id];
+    let msg='', cls='';
+    if(el.value==='' && id!=='minInt'){ msg='Enter a value.'; cls='err'; }
+    else if(isFinite(v) && (v<r[0]-1e-9 || v>r[1]+1e-9)){
+      msg = (id==='edgeF'||id==='edgeS') && v>r[1] ? `Cannot exceed the ${id==='edgeF'?'frontlap':'sidelap'} you fly (${r[1]} %).` : `Out of range — valid ${r[0]} – ${r[1]}${h.unit?' '+h.unit:''}. The nearest valid value is used.`;
+      cls='err';
+    } else if(isFinite(v) && h.advise && (v<h.advise[0] || v>h.advise[1])){
+      msg = id==='H' && v>h.advise[1] ? 'Above 120 m — check your local altitude limit.' : `Unusual value — typical ${h.advise[0]} – ${h.advise[1]}${h.unit?' '+h.unit:''}.`;
+      cls='adv';
+    }
+    setValidation(el,msg,cls); if(cls==='err') bad++;
+  }
+  const b=$('validBanner');
+  b.classList.toggle('hide', !bad);
+  b.innerHTML = bad ? `⚠ ${bad} setting${bad>1?'s are':' is'} outside the valid range (outlined in red). Results use the nearest valid value until you correct ${bad>1?'them':'it'}.` : '';
+}
+function setValidation(el,msg,cls){
+  let m=el.parentElement.querySelector(':scope > .vmsg[data-for="'+el.id+'"]');
+  el.classList.toggle('invalid', cls==='err'); el.classList.toggle('advisory', cls==='adv');
+  el.setAttribute('aria-invalid', cls==='err'?'true':'false');
+  if(!msg){ if(m) m.remove(); return; }
+  if(!m){ m=document.createElement('div'); m.className='vmsg'; m.dataset.for=el.id; m.id='vmsg-'+el.id; el.insertAdjacentElement('afterend',m); el.setAttribute('aria-describedby',m.id); }
+  m.className='vmsg '+cls; m.textContent=msg;
+}
+function clearValidation(el){ setValidation(el,'',''); }
+// clamp helper used by compute() for hard limits
+function clampField(id, v){ const r=fieldRange(id); if(!r||!isFinite(v)) return v; return Math.min(r[1], Math.max(r[0], v)); }
+
+// ---------- popovers ----------
+function helpHTML(h, id){
+  const rows=[];
+  if(h.what) rows.push(`<p>${h.what}</p>`);
+  const rt = id && HELP[id] ? rangeText(id) : (typeof h.range==='string'?h.range:'');
+  if(rt) rows.push(`<p><b>Range:</b> ${rt}</p>`);
+  if(h.typical) rows.push(`<p><b>Typical:</b> ${h.typical}</p>`);
+  if(h.effect) rows.push(`<p><b>Effect:</b> ${h.effect}</p>`);
+  if(h.tip) rows.push(`<p><b>Tip:</b> ${h.tip}</p>`);
+  return rows.join('');
+}
+function makeQ(key, isSection){
+  const b=document.createElement('button');
+  b.type='button'; b.className='qmark'; b.textContent='?';
+  const h = isSection ? HELP_SECTIONS[key] : HELP[key];
+  b.setAttribute('aria-label', 'Help: '+h.title); b.dataset.help=key; if(isSection) b.dataset.sec='1';
+  b.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); togglePop(b); });
+  return b;
+}
+let popOwner=null;
+function togglePop(btn){
+  const pop=$('helpPop');
+  if(popOwner===btn && !pop.classList.contains('hide')){ closePop(); return; }
+  const key=btn.dataset.help, h = btn.dataset.sec ? HELP_SECTIONS[key] : HELP[key];
+  pop.innerHTML = `<div class="pophead"><b>${h.title}</b><button type="button" class="popx" aria-label="Close help">×</button></div>${helpHTML(h, btn.dataset.sec?null:key)}<p class="popmore"><a href="#" data-topic="${btn.dataset.sec?'results':'settings'}">More in the Help centre →</a></p>`;
+  pop.classList.remove('hide'); popOwner=btn;
+  pop.querySelector('.popx').onclick=closePop;
+  pop.querySelector('[data-topic]').onclick=e=>{ e.preventDefault(); closePop(); openHelp(e.target.dataset.topic, key); };
+  const r=btn.getBoundingClientRect(), pw=Math.min(340, window.innerWidth-24);
+  pop.style.width=pw+'px';
+  let left=r.left+window.scrollX-10; left=Math.max(12+window.scrollX, Math.min(left, window.scrollX+window.innerWidth-pw-12));
+  pop.style.left=left+'px'; pop.style.top=(r.bottom+window.scrollY+6)+'px';
+  pop.focus();
+}
+function closePop(){ $('helpPop').classList.add('hide'); if(popOwner) popOwner.focus(); popOwner=null; }
+
+// ---------- help centre ----------
+function buildSettingsTable(){
+  const groups={};
+  for(const [id,h] of Object.entries(HELP)){ (groups[h.section]=groups[h.section]||[]).push([id,h]); }
+  let t='<p>Every setting, its unit, valid range and typical values. Ranges marked “recommended” are advice; values outside the valid range are rejected.</p>';
+  for(const [g,items] of Object.entries(groups)){
+    t+=`<h4>${g}</h4><table class="reftable"><tr><th>Setting</th><th>Meaning</th><th>Range</th><th>Typical</th></tr>`;
+    for(const [id,h] of items) t+=`<tr id="ref-${id}"><td><b>${h.title}</b>${h.unit?` <span class="tag">${h.unit}</span>`:''}</td><td>${h.what}${h.effect?`<br><span class="muted">${h.effect}</span>`:''}</td><td>${rangeText(id)}</td><td>${h.typical||''}</td></tr>`;
+    t+='</table>';
+  }
+  return t;
+}
+function buildResults(){
+  return '<p>What each part of the results means.</p>' + Object.entries(HELP_SECTIONS).map(([k,h])=>`<h4 id="ref-${k}">${h.title}</h4><p>${h.what}</p>${h.effect?`<p>${h.effect}</p>`:''}${h.tip?`<p class="muted">${h.tip}</p>`:''}`).join('') +
+   `<h4>Colours</h4><p>Green ✓ = meets your target · amber = covered but below target · red = weak or not covered. On the coverage map, darker purple = fewer photos, yellow = more.</p>`;
+}
+function openHelp(topic='quick', anchor){
+  const d=$('helpCentre');
+  const nav=$('helpNav'), body=$('helpBody');
+  nav.innerHTML = HELP_TOPICS.map(t=>`<button type="button" data-t="${t.id}" class="${t.id===topic?'active':''}">${t.title}</button>`).join('');
+  const T = HELP_TOPICS.find(t=>t.id===topic)||HELP_TOPICS[0];
+  body.innerHTML = `<h3>${T.title}</h3>` + T.html.replace('__SETTINGS_TABLE__', buildSettingsTable()).replace('__RESULTS__', buildResults());
+  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>openHelp(b.dataset.t));
+  if(!d.open) d.showModal();
+  body.scrollTop=0;
+  if(anchor){ const a=$('ref-'+anchor); if(a){ a.scrollIntoView({block:'center'}); a.classList.add('flash'); setTimeout(()=>a.classList.remove('flash'),1600); } }
+}
+function initHelp(){
+  // "?" next to every setting label
+  for(const id of Object.keys(HELP)){
+    const lab=document.querySelector(`label[for="${id}"]`);
+    if(lab) lab.appendChild(makeQ(id,false));
+  }
+  // "?" on result headings
+  document.querySelectorAll('[data-helpsec]').forEach(h=>h.appendChild(makeQ(h.dataset.helpsec,true)));
+  $('helpBtn').onclick=()=>openHelp('quick');
+  $('helpClose').onclick=()=>$('helpCentre').close();
+  $('helpCentre').addEventListener('click', e=>{ if(e.target===$('helpCentre')) $('helpCentre').close(); });
+  document.addEventListener('click', e=>{ if(!$('helpPop').classList.contains('hide') && !$('helpPop').contains(e.target)) closePop(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('helpPop').classList.contains('hide')) closePop(); });
+  document.addEventListener('input', ()=>validateAll());
+}
+initHelp();
+
+const DEFAULTS = {preset:'p4m', H:100, speed:5, shutter:1000, areaW:300, areaL:250, evalSurf:'top', mapMode:'front'};
+function resetDefaults(){
+  Object.entries(DEFAULTS).forEach(([k,v])=>$(k).value=v);
+  applyPreset();   // loads the payload's sensor values and its deliverable defaults (overlap, edge targets, object height)
+}
+$('resetBtn').addEventListener('click', ()=>{
+  resetDefaults();
+  const b=$('resetBtn'); b.textContent='✓ Defaults restored'; setTimeout(()=>b.textContent='↺ Reset to defaults',1500);
+});
+resetDefaults();
+</script>
+</body>
+</html>
