@@ -2,7 +2,7 @@
 
 A web app for UAV photogrammetrists. It turns the **“Margin”** setting of DJI flight-planning apps (GS RTK, GS Pro, Pilot 2) into the frontlap and sidelap you actually get at the **edge** of your survey area. It then recommends the margin that makes the whole area — boundary included — good enough for orthomosaics and 3D models.
 
-**▶ Use it online:** https://YOUR-USERNAME.github.io/uav-flight-margin-calculator/
+**▶ Use it online:** https://chiyanon.github.io/uav-flight-margin-calculator/
 
 It is a single HTML file with no dependencies and no data sent anywhere. You can also download `index.html` and open it offline in any browser, for example in the field.
 
